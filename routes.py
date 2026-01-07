@@ -36,12 +36,21 @@ from utils import (
 
 # Redis veya filesystem session storage seçimi
 USE_REDIS_SESSION = os.getenv("SESSION_TYPE", "filesystem") == "redis"
-if not USE_REDIS_SESSION:
-    SESSION_DIR = os.path.join(os.path.dirname(__file__), 'instance', 'sessions')
-    if not os.path.exists(SESSION_DIR):
-        os.makedirs(SESSION_DIR)
+IS_SERVERLESS = os.environ.get("VERCEL") or os.environ.get("NETLIFY") or os.environ.get("GAE_SERVICE")
 
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'instance', 'settings.json')
+if not USE_REDIS_SESSION:
+    if IS_SERVERLESS:
+        SESSION_DIR = "/tmp/sessions"
+    else:
+        SESSION_DIR = os.path.join(os.path.dirname(__file__), 'instance', 'sessions')
+        
+    if not os.path.exists(SESSION_DIR):
+        os.makedirs(SESSION_DIR, exist_ok=True)
+
+if IS_SERVERLESS:
+    SETTINGS_FILE = "/tmp/settings.json"
+else:
+    SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'instance', 'settings.json')
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):

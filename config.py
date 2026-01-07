@@ -15,10 +15,13 @@ class Config:
     SECRET_KEY = get_env("SECRET_KEY", "dev-secret-key-placeholder")
     
     # Database Configuration
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", 
-        "sqlite:///instance/astro.db"
-    )
+    IS_SERVERLESS = os.environ.get("VERCEL") or os.environ.get("NETLIFY") or os.environ.get("GAE_SERVICE")
+    if IS_SERVERLESS:
+        DEFAULT_DB = "sqlite:////tmp/astro.db"
+    else:
+        DEFAULT_DB = "sqlite:///instance/astro.db"
+        
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", DEFAULT_DB)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # API Keys - Loaded securely from environment

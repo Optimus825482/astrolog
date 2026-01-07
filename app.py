@@ -51,7 +51,12 @@ from config import Config
 app.config.from_object(Config)
 
 # Session configuration - Environment-aware setup
-app.config["SESSION_FILE_DIR"] = os.path.join(app.instance_path, "sessions")
+IS_SERVERLESS = os.environ.get("VERCEL") or os.environ.get("NETLIFY") or os.environ.get("GAE_SERVICE")
+if IS_SERVERLESS:
+    app.config["SESSION_FILE_DIR"] = "/tmp/sessions"
+else:
+    app.config["SESSION_FILE_DIR"] = os.path.join(app.instance_path, "sessions")
+
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_FILE_THRESHOLD"] = 100  # Maksimum session dosyası sayısını azalt
 app.config["SESSION_USE_SIGNER"] = True
