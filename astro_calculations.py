@@ -62,7 +62,10 @@ def ensure_ephe_file(filename):
         try:
             remote_url = REMOTE_EPHE_BASE_URL + filename
             logger.info(f"Efemeris dosyası indiriliyor: {filename} ...")
-            response = requests.get(remote_url, timeout=30)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            response = requests.get(remote_url, headers=headers, timeout=30)
             if response.status_code == 200:
                 with open(local_path, "wb") as f:
                     f.write(response.content)

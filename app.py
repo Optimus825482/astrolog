@@ -30,8 +30,8 @@ from dotenv import load_dotenv
 
 # from ai_interpretations import get_hyperbolic_interpretation # Eski importu yorum satırı yap veya sil
 from ai_interpretations import (
-    get_gemini_interpretation,
-)  # Hyperbolic yerine Gemini'yi import et
+    get_ai_interpretation_engine,
+)  # Merkezi yorum motorunu import et
 
 # Load environment variables (optional, but good practice if .env is used)
 load_dotenv()
@@ -634,8 +634,8 @@ def inter():
 #             "user_name", session.get("name", "Değerli Danışanım")
 #         )  # Kullanıcı adını al
 # 
-#         # Gemini yorum fonksiyonunu çağır
-#         ai_result = get_gemini_interpretation(
+#         # Merkezi yorum motorunu çağır
+#         ai_result = get_ai_interpretation_engine(
 #             astro_data=astro_data,
 #             interpretation_type=interpretation_type,
 #             user_name=user_name,

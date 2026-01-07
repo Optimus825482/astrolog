@@ -1,19 +1,9 @@
 {
   "version": 2,
-  "github": {
-    "silent": true
-  },
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/api/index"
     }
-  ],
-  "functions": {
-    "api/index.py": {
-      "runtime": "@vercel/python",
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
+  ]
 }

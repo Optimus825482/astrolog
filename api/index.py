@@ -1,4 +1,3 @@
 from wsgi import app
 
-# Vercel serverless function entry point
-# wsgi.py içinden 'app' nesnesini alıyoruz
+# Vercel, 'app' nesnesini otomatik olarak Flask/WSGI uygulaması olarak tanır.
