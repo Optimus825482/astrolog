@@ -2506,7 +2506,7 @@ super() }}
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // TTS ENGINE - Simplified Audio Experience
+    // TTS ENGINE - Hybrid (Native Capacitor + Web Speech API Fallback)
     // ═══════════════════════════════════════════════════════════════════════════
 
     const TTS = {
@@ -2520,29 +2520,99 @@ super() }}
       rate: parseFloat(localStorage.getItem('tts-speed') || '1.5'),
       voicesLoaded: false,
       selectedVoice: null,
+      
+      // Platform detection
+      isNative: false,
+      nativeTTS: null,
 
-      init() {
-        // Load voices
-        this.loadVoices();
+      async init() {
+        console.log('[TTS] Engine initializing...');
+        
+        // Check if running in Capacitor native environment
+        this.isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+        console.log('[TTS] Platform:', this.isNative ? 'Native (Capacitor)' : 'Web');
+        
+        if (this.isNative) {
+          await this.initNativeTTS();
+        } else {
+          await this.initWebTTS();
+        }
+        
         // Update speed display
         this.updateSpeedDisplay();
         // Bind events
         this.bindEvents();
-        console.log('[TTS] Engine initialized');
+        console.log('[TTS] Engine initialized successfully');
+      },
+
+      async initNativeTTS() {
+        try {
+          // Check if TextToSpeech plugin is available
+          if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.TextToSpeech) {
+            this.nativeTTS = Capacitor.Plugins.TextToSpeech;
+            console.log('[TTS] Native TextToSpeech plugin found');
+            
+            // Get supported languages
+            const { languages } = await this.nativeTTS.getSupportedLanguages();
+            console.log('[TTS] Supported languages:', languages.length);
+            
+            // Check if Turkish is supported
+            const hasTurkish = languages.some(lang => lang.includes('tr'));
+            console.log('[TTS] Turkish support:', hasTurkish);
+            
+            // Get available voices
+            const { voices } = await this.nativeTTS.getSupportedVoices();
+            console.log('[TTS] Available voices:', voices.length);
+            
+            // Find best Turkish voice
+            const trVoices = voices.filter(v => v.lang && v.lang.includes('tr'));
+            if (trVoices.length > 0) {
+              // Prefer female voice
+              const femaleVoice = trVoices.find(v => 
+                v.name && (v.name.toLowerCase().includes('female') || 
+                           v.name.toLowerCase().includes('kadın') ||
+                           v.name.toLowerCase().includes('seda'))
+              );
+              this.selectedVoice = femaleVoice ? voices.indexOf(femaleVoice) : voices.indexOf(trVoices[0]);
+              console.log('[TTS] Selected Turkish voice index:', this.selectedVoice);
+            }
+            
+            this.voicesLoaded = true;
+          } else {
+            console.warn('[TTS] Native TextToSpeech plugin not available, falling back to Web API');
+            this.isNative = false;
+            await this.initWebTTS();
+          }
+        } catch (error) {
+          console.error('[TTS] Native TTS init error:', error);
+          this.isNative = false;
+          await this.initWebTTS();
+        }
+      },
+
+      async initWebTTS() {
+        // Load voices for Web Speech API
+        await this.loadVoices();
       },
 
       bindEvents() {
-        // Modal read button
-        $('#modal-read-aloud').on('click', () => this.startFromModal());
+        // Modal read button - jQuery binding
+        $('#modal-read-aloud').off('click').on('click', () => this.startFromModal());
 
         // Cleanup on page unload
         $(window).on('beforeunload', () => {
-          speechSynthesis.cancel();
+          this.stop();
         });
       },
 
       loadVoices() {
         return new Promise((resolve) => {
+          if (typeof speechSynthesis === 'undefined') {
+            console.warn('[TTS] Web Speech API not available');
+            resolve([]);
+            return;
+          }
+          
           const voices = speechSynthesis.getVoices();
           if (voices.length > 0) {
             this.voicesLoaded = true;
@@ -2555,6 +2625,8 @@ super() }}
               this.selectedVoice = this.findBestTurkishVoice(newVoices);
               resolve(newVoices);
             };
+            // Timeout fallback
+            setTimeout(() => resolve([]), 2000);
           }
         });
       },
@@ -2577,12 +2649,16 @@ super() }}
 
         // If currently speaking, restart with new speed
         if (this.status === 'playing') {
-          speechSynthesis.cancel();
-          this.speakCurrentChunk();
+          const currentText = this.chunks.slice(this.currentChunkIndex).join(' ');
+          this.stop();
+          if (currentText) {
+            setTimeout(() => this.start(currentText), 100);
+          }
         }
       },
 
       updateSpeedDisplay() {
+        $('#speed-display').text(this.rate.toFixed(1) + 'x');
         $('.speed-display-value').text(this.rate.toFixed(1) + 'x');
       },
 
@@ -2596,8 +2672,8 @@ super() }}
           return;
         }
 
-        // Eğer duraklatılmışsa DEVAM ET
-        if (this.status === 'paused') {
+        // Eğer duraklatılmışsa DEVAM ET (sadece web için)
+        if (this.status === 'paused' && !this.isNative) {
           console.log('[TTS] Resuming...');
           this.resume();
           return;
@@ -2617,12 +2693,11 @@ super() }}
         this.start(text);
       },
 
-      start(text) {
-        console.log('[TTS] start() called');
+      async start(text) {
+        console.log('[TTS] start() called, isNative:', this.isNative);
         
-        // Cancel any ongoing speech
-        speechSynthesis.cancel();
-        console.log('[TTS] Previous speech cancelled');
+        // Stop any ongoing speech
+        await this.stop();
 
         // Prepare chunks
         this.chunks = this.splitIntoChunks(text);
@@ -2637,28 +2712,81 @@ super() }}
 
         // Start speaking
         console.log('[TTS] Starting to speak...');
-        this.speakCurrentChunk();
+        
+        if (this.isNative) {
+          await this.speakNative();
+        } else {
+          this.speakCurrentChunk();
+        }
+      },
+
+      async speakNative() {
+        if (this.status !== 'playing' || this.currentChunkIndex >= this.totalChunks) {
+          this.finish();
+          return;
+        }
+
+        const chunk = this.chunks[this.currentChunkIndex];
+        console.log('[TTS] Speaking chunk', this.currentChunkIndex + 1, '/', this.totalChunks);
+
+        try {
+          const options = {
+            text: chunk,
+            lang: 'tr-TR',
+            rate: this.rate,
+            pitch: 1.0,
+            volume: 1.0,
+            category: 'playback' // Allow background playback
+          };
+          
+          // Add voice if selected
+          if (this.selectedVoice !== null && this.selectedVoice >= 0) {
+            options.voice = this.selectedVoice;
+          }
+
+          await this.nativeTTS.speak(options);
+          
+          // Move to next chunk if still playing
+          if (this.status === 'playing') {
+            this.currentChunkIndex++;
+            await this.speakNative();
+          }
+        } catch (error) {
+          console.error('[TTS] Native speak error:', error);
+          
+          // If native fails, try web fallback
+          if (error.message && error.message.includes('not available')) {
+            console.log('[TTS] Falling back to Web Speech API');
+            this.isNative = false;
+            await this.initWebTTS();
+            this.speakCurrentChunk();
+          } else if (this.status === 'playing') {
+            // Skip to next chunk on error
+            this.currentChunkIndex++;
+            await this.speakNative();
+          }
+        }
       },
 
       resume() {
         if (this.status !== 'paused') return;
         this.status = 'playing';
         this.updateButtonState(true);
-        this.speakCurrentChunk();
+        
+        if (!this.isNative && typeof speechSynthesis !== 'undefined') {
+          speechSynthesis.resume();
+        }
       },
 
       splitIntoChunks(text, maxLength = 1500) {
         // Önce paragrafları ayır, sonra çok uzunsa cümlelere böl
-        // Bu sayede daha az durak olur ve daha akıcı okuma sağlanır
         const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
         const chunks = [];
 
         for (const para of paragraphs) {
           if (para.length <= maxLength) {
-            // Paragraf yeterince kısa, direkt ekle
             chunks.push(para.trim());
           } else {
-            // Paragraf çok uzun, cümlelere böl ve birleştir
             const sentences = para.match(/[^.!?]+[.!?]+/g) || [para];
             let currentChunk = '';
 
@@ -2676,12 +2804,18 @@ super() }}
           }
         }
         
-        // Eğer hiç chunk yoksa, orijinal metni döndür
         return chunks.length > 0 ? chunks : [text];
       },
 
       speakCurrentChunk() {
-        // Eğer durdurulduysa veya idle ise çık
+        // Web Speech API implementation
+        if (typeof speechSynthesis === 'undefined') {
+          console.error('[TTS] Web Speech API not available');
+          alert('Sesli okuma bu tarayıcıda desteklenmiyor.');
+          this.stop();
+          return;
+        }
+
         if (this.status === 'idle' || this.status === 'stopped') {
           return;
         }
@@ -2698,15 +2832,15 @@ super() }}
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         utterance.rate = this.rate;
-        utterance.pitch = isMobile ? 0.4 : 0.8; // Mobilde düşük pitch çalışır, desktop'ta daha yüksek
+        utterance.pitch = isMobile ? 0.4 : 0.8;
         utterance.volume = 1.0;
+        utterance.lang = 'tr-TR';
 
         if (this.selectedVoice) {
           utterance.voice = this.selectedVoice;
         }
 
         utterance.onend = () => {
-          // Sadece hala playing durumundaysa devam et
           if (this.status === 'playing') {
             this.currentChunkIndex++;
             this.speakCurrentChunk();
@@ -2714,7 +2848,6 @@ super() }}
         };
 
         utterance.onerror = (e) => {
-          // interrupted hatası normal - cancel() çağrıldığında olur
           if (e.error === 'interrupted') {
             console.log('[TTS] Speech interrupted (normal on stop)');
             return;
@@ -2730,6 +2863,16 @@ super() }}
       },
 
       togglePlayPause() {
+        if (this.isNative) {
+          // Native doesn't support pause, just stop
+          if (this.status === 'playing') {
+            this.stop();
+          }
+          return;
+        }
+
+        if (typeof speechSynthesis === 'undefined') return;
+
         if (this.status === 'playing') {
           speechSynthesis.pause();
           this.status = 'paused';
@@ -2741,12 +2884,25 @@ super() }}
         }
       },
 
-      stop() {
-        // Önce status'u değiştir ki onend callback'i yeni chunk başlatmasın
+      async stop() {
+        console.log('[TTS] Stopping...');
+        const wasPlaying = this.status === 'playing';
+        
         this.status = 'idle';
         this.currentChunkIndex = 0;
-        // Sonra cancel et
-        speechSynthesis.cancel();
+        
+        if (this.isNative && this.nativeTTS) {
+          try {
+            await this.nativeTTS.stop();
+          } catch (e) {
+            console.log('[TTS] Native stop error (may be normal):', e);
+          }
+        }
+        
+        if (typeof speechSynthesis !== 'undefined') {
+          speechSynthesis.cancel();
+        }
+        
         this.updateButtonState(false);
         console.log('[TTS] Stopped');
       },
@@ -2754,6 +2910,7 @@ super() }}
       finish() {
         this.status = 'finished';
         this.updateButtonState(false);
+        console.log('[TTS] Finished');
       },
 
       updateButtonState(isPlaying) {
@@ -2791,17 +2948,8 @@ super() }}
     // Global TTS click handler (for onclick attribute)
     function handleTTSClick() {
       console.log('[TTS] Button clicked!');
-      
-      // Check if speechSynthesis is available
-      if (typeof speechSynthesis === 'undefined') {
-        console.error('[TTS] speechSynthesis not available!');
-        alert('Sesli okuma bu cihazda desteklenmiyor.');
-        return;
-      }
-      
-      // Check voices
-      const voices = speechSynthesis.getVoices();
-      console.log('[TTS] Available voices:', voices.length);
+      console.log('[TTS] isNative:', TTS.isNative);
+      console.log('[TTS] status:', TTS.status);
       
       // Try to start TTS
       try {
