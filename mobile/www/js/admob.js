@@ -7,19 +7,19 @@
 const OrbisAds = {
   // Ad Unit IDs
   AD_UNITS: {
-    // Test Ad Unit IDs (DEV) - Emülatör ve geliştirme için
-    BANNER: "ca-app-pub-3940256099942544/6300978111",
-    INTERSTITIAL: "ca-app-pub-3940256099942544/1033173712",
-    REWARDED: "ca-app-pub-3940256099942544/5224354917",
+    // Production Ad Unit IDs (LIVE)
+    BANNER: "ca-app-pub-2444093901783574/5860659669",
+    INTERSTITIAL: "ca-app-pub-2444093901783574/8840184408",
+    REWARDED: "ca-app-pub-2444093901783574/4900939398",
 
-    // Production Ad Unit IDs (LIVE) - Release build için bunları kullan
-    // BANNER: "ca-app-pub-244409390178357/5860659669",
-    // INTERSTITIAL: "ca-app-pub-244409390178357/8840184408",
-    // REWARDED: "ca-app-pub-244409390178357/4900939398",
+    // Test Ad Unit IDs (DEV) - Sadece geliştirme için
+    // BANNER: "ca-app-pub-3940256099942544/6300978111",
+    // INTERSTITIAL: "ca-app-pub-3940256099942544/1033173712",
+    // REWARDED: "ca-app-pub-3940256099942544/5224354917",
   },
 
-  // App ID (Test)
-  APP_ID: "ca-app-pub-3940256099942544~3347511713", // Test App ID
+  // App ID (Production)
+  APP_ID: "ca-app-pub-2444093901783574~4683309361",
 
   // State
   isInitialized: false,
@@ -87,7 +87,7 @@ const OrbisAds = {
 
       // AdMob'u initialize et
       await AdMob.initialize({
-        initializeForTesting: true, // Test mode - DEV için
+        initializeForTesting: false, // Production mode
         // requestTrackingAuthorization: true, // iOS için
       });
 
@@ -173,7 +173,7 @@ const OrbisAds = {
         adSize: "ADAPTIVE_BANNER",
         position: position === "TOP" ? "TOP_CENTER" : "BOTTOM_CENTER",
         margin: 0,
-        isTesting: true, // Test mode - DEV için
+        isTesting: false, // Production mode
       });
 
       console.log("[AdMob] Banner shown");
@@ -213,7 +213,7 @@ const OrbisAds = {
 
       await AdMob.prepareInterstitial({
         adId: this.AD_UNITS.INTERSTITIAL,
-        isTesting: true, // Test mode - DEV için
+        isTesting: false, // Production mode
       });
     } catch (error) {
       console.error("[AdMob] Load interstitial error:", error);
@@ -267,7 +267,7 @@ const OrbisAds = {
 
       await AdMob.prepareRewardVideoAd({
         adId: this.AD_UNITS.REWARDED,
-        isTesting: true, // Test mode - DEV için
+        isTesting: false, // Production mode
       });
     } catch (error) {
       console.error("[AdMob] Load rewarded error:", error);

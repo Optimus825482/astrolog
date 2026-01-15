@@ -28,8 +28,8 @@ const config: CapacitorConfig = {
       backgroundColor: "#151022",
     },
     AdMob: {
-      testingDevices: ["YOUR_DEVICE_ID"],
-      initializeForTesting: true,
+      testingDevices: [], // Production - boş array
+      initializeForTesting: false, // Production mode
     },
     GoogleAuth: {
       scopes: ["profile", "email"],
