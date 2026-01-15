@@ -42,6 +42,24 @@ const OrbisFirebase = {
 
       console.log("[Firebase] Başlatıldı");
 
+      // ═══════════════════════════════════════════════════════════════
+      // CAPACITOR GOOGLE AUTH INITIALIZATION (Native Platform)
+      // ═══════════════════════════════════════════════════════════════
+      await this.initCapacitorGoogleAuth();
+
+      // Redirect sonrası result kontrolü (Web için)
+      try {
+        const result = await this.auth.getRedirectResult();
+        if (result.user) {
+          console.log("[Firebase] Redirect giriş başarılı:", result.user.email);
+        }
+      } catch (redirectError) {
+        console.log(
+          "[Firebase] Redirect result yok veya hata:",
+          redirectError.code
+        );
+      }
+
       // Auth state listener
       this.auth.onAuthStateChanged((user) => {
         this.handleAuthStateChange(user);
@@ -54,27 +72,180 @@ const OrbisFirebase = {
     }
   },
 
+  // Capacitor GoogleAuth Plugin Initialize
+  async initCapacitorGoogleAuth() {
+    try {
+      const isNative =
+        typeof Capacitor !== "undefined" && Capacitor.isNativePlatform();
+
+      if (!isNative) {
+        console.log("[GoogleAuth] Web platform - skip native init");
+        return;
+      }
+
+      console.log("[GoogleAuth] Native platform detected - initializing...");
+
+      // Plugin'i bul
+      let GoogleAuth = null;
+
+      if (Capacitor.Plugins && Capacitor.Plugins.GoogleAuth) {
+        GoogleAuth = Capacitor.Plugins.GoogleAuth;
+      } else if (window.Plugins && window.Plugins.GoogleAuth) {
+        GoogleAuth = window.Plugins.GoogleAuth;
+      }
+
+      if (!GoogleAuth) {
+        console.warn("[GoogleAuth] Plugin bulunamadı - sonra tekrar denenecek");
+        return;
+      }
+
+      // Plugin'i initialize et
+      await GoogleAuth.initialize({
+        clientId:
+          "768649602152-aous93aj0cnn8bjdsqvjo4t62ip2feci.apps.googleusercontent.com",
+        scopes: ["profile", "email"],
+        grantOfflineAccess: true,
+      });
+
+      console.log("[GoogleAuth] Plugin başarıyla initialize edildi!");
+    } catch (error) {
+      console.error("[GoogleAuth] Initialize hatası:", error);
+      // Hatayı yutuyoruz çünkü bazı durumlarda (Android'de zaten init edilmişse) hata verebilir
+    }
+  },
+
   // ═══════════════════════════════════════════════════════════════
   // AUTH
   // ═══════════════════════════════════════════════════════════════
 
   async signInWithGoogle() {
     try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({
-        prompt: "select_account",
-      });
+      // Native platform kontrolü (Capacitor Android/iOS)
+      const isNative =
+        typeof Capacitor !== "undefined" && Capacitor.isNativePlatform();
 
-      const result = await this.auth.signInWithPopup(provider);
-      console.log("[Firebase] Google ile giriş başarılı:", result.user.email);
-      return result.user;
-    } catch (error) {
-      console.error("[Firebase] Google giriş hatası:", error);
+      console.log("[Firebase] isNative:", isNative);
 
-      if (error.code === "auth/popup-closed-by-user") {
-        console.log("[Firebase] Kullanıcı popup'ı kapattı");
+      if (isNative) {
+        console.log(
+          "[Firebase] Native platform - Capacitor Google Auth kullanılıyor..."
+        );
+
+        // Capacitor Google Auth plugin kontrolü
+        let GoogleAuth = null;
+
+        // Yeni Capacitor 5+ API
+        if (
+          typeof Capacitor !== "undefined" &&
+          Capacitor.Plugins &&
+          Capacitor.Plugins.GoogleAuth
+        ) {
+          GoogleAuth = Capacitor.Plugins.GoogleAuth;
+        }
+
+        // Alternatif: Global @codetrix-studio/capacitor-google-auth
+        if (!GoogleAuth && window.Plugins && window.Plugins.GoogleAuth) {
+          GoogleAuth = window.Plugins.GoogleAuth;
+        }
+
+        if (!GoogleAuth) {
+          console.error("[Firebase] GoogleAuth plugin bulunamadı!");
+          alert(
+            "Google Auth eklentisi bulunamadı.\n\n" +
+              "Lütfen uygulamayı yeniden yükleyin veya " +
+              "destek@orbis.app adresine başvurun."
+          );
+          return null;
+        }
+
+        try {
+          console.log("[Firebase] GoogleAuth.signIn() çağrılıyor...");
+
+          // Native Google Sign-In
+          const googleUser = await GoogleAuth.signIn();
+
+          console.log(
+            "[Firebase] Native Google Sign-In başarılı:",
+            googleUser.email
+          );
+          console.log(
+            "[Firebase] idToken mevcut:",
+            !!googleUser.authentication?.idToken
+          );
+
+          if (!googleUser.authentication?.idToken) {
+            throw new Error("idToken alınamadı!");
+          }
+
+          // Firebase credential oluştur
+          const credential = firebase.auth.GoogleAuthProvider.credential(
+            googleUser.authentication.idToken
+          );
+
+          // Firebase'e giriş yap
+          const result = await this.auth.signInWithCredential(credential);
+          console.log("[Firebase] Firebase giriş başarılı:", result.user.email);
+
+          return result.user;
+        } catch (nativeError) {
+          console.error("[Firebase] Native Google Auth hatası:", nativeError);
+
+          // Kullanıcı iptal etti mi?
+          const errorMsg = nativeError.message || JSON.stringify(nativeError);
+
+          if (
+            errorMsg.includes("canceled") ||
+            errorMsg.includes("cancelled") ||
+            errorMsg.includes("12501") ||
+            errorMsg.includes("user_cancelled")
+          ) {
+            console.log("[Firebase] Kullanıcı giriş işlemini iptal etti");
+            return null;
+          }
+
+          // Gerçek hata - kullanıcıya bildir
+          alert(
+            "Google giriş hatası!\n\n" +
+              "Hata: " +
+              errorMsg +
+              "\n\n" +
+              "İpucu: İnternet bağlantınızı kontrol edin ve tekrar deneyin."
+          );
+          return null;
+        }
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // WEB PLATFORM - Normal tarayıcı için
+      // ═══════════════════════════════════════════════════════════════
+
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      try {
+        const result = await this.auth.signInWithPopup(provider);
+        console.log("[Firebase] Google ile giriş başarılı:", result.user.email);
+        return result.user;
+      } catch (popupError) {
+        console.error(
+          "[Firebase] Popup hatası:",
+          popupError.code,
+          popupError.message
+        );
+
+        if (
+          popupError.code === "auth/popup-blocked" ||
+          popupError.code === "auth/popup-closed-by-user"
+        ) {
+          console.log("[Firebase] Popup başarısız, redirect deneniyor...");
+          await this.auth.signInWithRedirect(provider);
+          return null;
+        }
+        throw popupError;
+      }
+    } catch (error) {
+      console.error("[Firebase] Google giriş hatası:", error);
+      alert("Giriş sırasında beklenmeyen bir hata oluştu: " + error.message);
       return null;
     }
   },
@@ -114,9 +285,25 @@ const OrbisFirebase = {
     if (user) {
       console.log("[Firebase] Kullanıcı giriş yaptı:", user.email);
       this.loadUserData();
+
+      // Mobile app'e kullanıcı bilgisini gönder (reklam kontrolü için)
+      if (
+        window.OrbisApp &&
+        typeof window.OrbisApp.onUserLogin === "function"
+      ) {
+        window.OrbisApp.onUserLogin(user);
+      }
     } else {
       console.log("[Firebase] Kullanıcı çıkış yaptı");
       this.userDoc = null;
+
+      // Mobile app'e çıkış bilgisini gönder
+      if (
+        window.OrbisApp &&
+        typeof window.OrbisApp.onUserLogout === "function"
+      ) {
+        window.OrbisApp.onUserLogout();
+      }
     }
 
     this.updateAuthUI();

@@ -68,6 +68,15 @@ def favicon():
         mimetype="image/x-icon"
     )
 
+@bp.route("/manifest.json")
+def manifest():
+    """PWA Manifest'i root'tan sun"""
+    return send_from_directory(
+        os.path.join(current_app.root_path, "static"),
+        "manifest.json",
+        mimetype="application/manifest+json"
+    )
+
 @bp.route("/dashboard")
 def dashboard():
     opencage_key = current_app.config.get("OPENCAGE_API_KEY", "")
@@ -79,17 +88,33 @@ def show_results():
         if request.method == "POST":
             # Formdan gelen verileri al
             data = request.form
-            birth_date_str = data["birth_date"]
-            birth_time_str = data["birth_time"]
-            latitude_str = data["latitude"]
-            longitude_str = data["longitude"]
-            user_name = data.get("name", "Değerli Danışanım")
+            birth_date_str = data.get("birth_date", "").strip()
+            birth_time_str = data.get("birth_time", "").strip()
+            latitude_str = data.get("latitude", "").strip()
+            longitude_str = data.get("longitude", "").strip()
+            user_name = data.get("name", "Değerli Danışanım").strip()
+            
+            # Debug log
+            logger.info(f"Form data received - birth_date: {birth_date_str}, birth_time: {birth_time_str}, lat: {latitude_str}, lng: {longitude_str}")
+            
+            # Validation
+            if not birth_date_str:
+                flash("Doğum tarihi gerekli!")
+                return redirect(url_for("main.dashboard"))
+            
+            if not birth_time_str:
+                flash("Doğum saati gerekli!")
+                return redirect(url_for("main.dashboard"))
+                
+            if not latitude_str or not longitude_str:
+                flash("Doğum yeri seçilmedi! Lütfen şehir arayıp listeden seçin.")
+                return redirect(url_for("main.dashboard"))
             
             # Transit bilgileri (opsiyonel)
-            transit_date = data.get("transit_date")
-            transit_time = data.get("transit_time")
-            transit_lat = data.get("transit_latitude")
-            transit_lng = data.get("transit_longitude")
+            transit_date = data.get("transit_date", "").strip()
+            transit_time = data.get("transit_time", "").strip()
+            transit_lat = data.get("transit_latitude", "").strip()
+            transit_lng = data.get("transit_longitude", "").strip()
             
             transit_info = None
             if transit_date and transit_time:
@@ -101,19 +126,35 @@ def show_results():
                 }
 
             # Astrolojik hesaplamaları yap
-            birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d").date()
+            try:
+                birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d").date()
+            except ValueError as ve:
+                logger.error(f"Date parse error: {birth_date_str} - {ve}")
+                flash(f"Geçersiz tarih formatı: {birth_date_str}. YYYY-MM-DD formatında olmalı.")
+                return redirect(url_for("main.dashboard"))
+            
             birth_time = parse_time_flexible(birth_time_str)
+            
+            try:
+                lat = float(latitude_str)
+                lng = float(longitude_str)
+            except ValueError as ve:
+                logger.error(f"Coordinate parse error: lat={latitude_str}, lng={longitude_str} - {ve}")
+                flash("Geçersiz koordinat değerleri!")
+                return redirect(url_for("main.dashboard"))
             
             astro_data = calculate_astro_data(
                 birth_date=birth_date,
                 birth_time=birth_time,
-                latitude=float(latitude_str),
-                longitude=float(longitude_str),
+                latitude=lat,
+                longitude=lng,
                 transit_info=transit_info
             )
 
             if not astro_data or "error" in astro_data:
-                flash("Hesaplama sırasında bir hata oluştu.")
+                error_msg = astro_data.get("error", "Bilinmeyen hata") if astro_data else "Hesaplama başarısız"
+                logger.error(f"Astro calculation error: {error_msg}")
+                flash(f"Hesaplama sırasında bir hata oluştu: {error_msg}")
                 return redirect(url_for("main.dashboard"))
 
             # Kullanıcı bilgilerini ekle
@@ -132,7 +173,7 @@ def show_results():
 
     except Exception as e:
         logger.error(f"show_results hatası: {str(e)}", exc_info=True)
-        flash("Bir hata oluştu.")
+        flash(f"Bir hata oluştu: {str(e)}")
         return redirect(url_for("main.dashboard"))
 
 @bp.route("/api/get_ai_interpretation", methods=["POST"])

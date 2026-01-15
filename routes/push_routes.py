@@ -6,53 +6,66 @@ FCM token kaydetme ve push gönderme endpoint'leri
 from flask import Blueprint, request, jsonify
 from services.firebase_service import firebase_service
 
-push_bp = Blueprint('push', __name__, url_prefix='/api/push')
+push_bp = Blueprint('push', __name__, url_prefix='/api')
 
 
-@push_bp.route('/register-token', methods=['POST'])
+@push_bp.route('/fcm/register', methods=['POST'])
+@push_bp.route('/push/register-token', methods=['POST'])
 def register_token():
     """
-    FCM token'ı kaydet
+    FCM token'ı kaydet ve topic'lere abone et
     
     Body:
         {
-            "userId": "firebase_user_id",
             "token": "fcm_device_token",
-            "platform": "web" | "android" | "ios"
+            "platform": "web" | "android" | "ios",
+            "userId": "firebase_user_id" (opsiyonel),
+            "topics": ["all_users", "daily_horoscope"] (opsiyonel)
         }
     """
     try:
         data = request.get_json()
         
-        user_id = data.get('userId')
         token = data.get('token')
-        platform = data.get('platform', 'web')
+        platform = data.get('platform', 'android')
+        user_id = data.get('userId')
+        topics = data.get('topics', ['all_users'])
         
-        if not user_id or not token:
+        if not token:
             return jsonify({
                 'success': False,
-                'error': 'userId ve token gerekli'
+                'error': 'token gerekli'
             }), 400
         
-        success = firebase_service.save_fcm_token(user_id, token, platform)
+        # Eğer userId varsa Firestore'a kaydet
+        if user_id:
+            firebase_service.save_fcm_token(user_id, token, platform)
         
-        # Premium kullanıcıları topic'e ekle
-        # (Bu bilgi frontend'den gelmeli veya Firestore'dan kontrol edilmeli)
-        firebase_service.subscribe_to_topic([token], 'all_users')
+        # Topic'lere abone et
+        subscribed_topics = []
+        allowed_topics = ['all_users', 'daily_horoscope', 'weekly_horoscope', 'premium_users']
+        
+        for topic in topics:
+            if topic in allowed_topics:
+                success = firebase_service.subscribe_to_topic([token], topic)
+                if success:
+                    subscribed_topics.append(topic)
         
         return jsonify({
-            'success': success,
-            'message': 'Token kaydedildi' if success else 'Token kaydedilemedi'
+            'success': True,
+            'message': 'Token kaydedildi',
+            'subscribedTopics': subscribed_topics
         })
         
     except Exception as e:
+        print(f"[FCM] Register error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
 
-@push_bp.route('/subscribe-topic', methods=['POST'])
+@push_bp.route('/push/subscribe-topic', methods=['POST'])
 def subscribe_topic():
     """
     Kullanıcıyı bir topic'e abone et
@@ -97,7 +110,7 @@ def subscribe_topic():
         }), 500
 
 
-@push_bp.route('/unsubscribe-topic', methods=['POST'])
+@push_bp.route('/push/unsubscribe-topic', methods=['POST'])
 def unsubscribe_topic():
     """Kullanıcıyı bir topic'ten çıkar"""
     try:
@@ -129,7 +142,7 @@ def unsubscribe_topic():
 # ADMIN ENDPOINTS (Güvenli ortamdan çağrılmalı)
 # ═══════════════════════════════════════════════════════════════
 
-@push_bp.route('/send-to-user', methods=['POST'])
+@push_bp.route('/push/send-to-user', methods=['POST'])
 def send_to_user():
     """
     Belirli bir kullanıcıya push gönder (Admin)
@@ -186,7 +199,7 @@ def send_to_user():
         }), 500
 
 
-@push_bp.route('/send-to-topic', methods=['POST'])
+@push_bp.route('/push/send-to-topic', methods=['POST'])
 def send_to_topic():
     """
     Bir topic'e push gönder (Admin)
@@ -227,7 +240,7 @@ def send_to_topic():
         }), 500
 
 
-@push_bp.route('/broadcast', methods=['POST'])
+@push_bp.route('/push/broadcast', methods=['POST'])
 def broadcast():
     """
     Tüm kullanıcılara push gönder (Admin)

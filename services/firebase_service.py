@@ -22,12 +22,18 @@ class FirebaseService:
         return cls._instance
     
     def __init__(self):
+        # db attribute'u her zaman tanımlı olsun
+        if not hasattr(self, 'db'):
+            self.db = None
+        
         if not FirebaseService._initialized:
             self._init_firebase()
             FirebaseService._initialized = True
     
     def _init_firebase(self):
         """Firebase Admin SDK'yı başlat"""
+        self.db = None  # Önce None olarak başlat
+        
         try:
             # Credential dosyası yolu
             cred_path = os.environ.get('FIREBASE_CREDENTIALS_PATH')
@@ -57,10 +63,15 @@ class FirebaseService:
                     print("[Firebase] Credential dosyası bulunamadı!")
                     return
             
-            # Firebase'i başlat
-            firebase_admin.initialize_app(cred)
+            # Firebase'i başlat (zaten başlatılmışsa atla)
+            try:
+                firebase_admin.get_app()
+                print("[Firebase] Admin SDK zaten başlatılmış")
+            except ValueError:
+                firebase_admin.initialize_app(cred)
+                print("[Firebase] Admin SDK başlatıldı")
+            
             self.db = firestore.client()
-            print("[Firebase] Admin SDK başlatıldı")
             
         except Exception as e:
             print(f"[Firebase] Başlatma hatası: {e}")
@@ -98,13 +109,14 @@ class FirebaseService:
                 image=image_url
             )
             
-            # Android özel ayarları
+            # Android özel ayarları - Ses sistem tarafından yönetilsin
             android_config = messaging.AndroidConfig(
                 priority='high',
                 notification=messaging.AndroidNotification(
                     icon='ic_notification',
                     color='#5b2bee',
-                    sound='default',
+                    # sound kaldırıldı - sistem varsayılan sesi kullanacak
+                    channel_id='orbis_notifications',
                     click_action='FLUTTER_NOTIFICATION_CLICK'
                 )
             )
@@ -209,11 +221,22 @@ class FirebaseService:
             - 'daily_horoscope': Günlük burç yorumu isteyenler
         """
         try:
+            # Android config - çift ses olmasın
+            android_config = messaging.AndroidConfig(
+                priority='high',
+                notification=messaging.AndroidNotification(
+                    icon='ic_notification',
+                    color='#5b2bee',
+                    channel_id='orbis_notifications'
+                )
+            )
+            
             message = messaging.Message(
                 notification=messaging.Notification(
                     title=title,
                     body=body
                 ),
+                android=android_config,
                 data=data or {},
                 topic=topic
             )

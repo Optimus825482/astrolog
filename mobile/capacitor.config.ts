@@ -5,11 +5,11 @@ const config: CapacitorConfig = {
   appName: "ORBIS",
   webDir: "www",
 
-  // Server configuration - Production
+  // Server configuration - Production URL
   server: {
-    // Production URL - Vercel'deki web app
     url: "https://ast-kappa.vercel.app",
     androidScheme: "https",
+    cleartext: false,
   },
 
   plugins: {
@@ -28,9 +28,17 @@ const config: CapacitorConfig = {
       backgroundColor: "#151022",
     },
     AdMob: {
-      // Test modunda başla - Production'da false yapın
       testingDevices: ["YOUR_DEVICE_ID"],
       initializeForTesting: true,
+    },
+    GoogleAuth: {
+      scopes: ["profile", "email"],
+      serverClientId:
+        "768649602152-aous93aj0cnn8bjdsqvjo4t62ip2feci.apps.googleusercontent.com",
+      forceCodeForRefreshToken: true,
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
     },
   },
 

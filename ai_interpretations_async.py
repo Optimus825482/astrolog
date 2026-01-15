@@ -47,6 +47,50 @@ DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 logger = logging.getLogger(__name__)
 
 
+def remove_emojis(text: str) -> str:
+    """
+    Metinden tüm emoji karakterlerini temizler.
+    Android TalkBack erişilebilirlik okuyucusu emoji'leri sesli okuduğu için
+    AI yorumlarından emoji'leri kaldırıyoruz.
+    """
+    import re
+    
+    # Kapsamlı emoji regex pattern'i
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # Yüz ifadeleri (emoticons)
+        "\U0001F300-\U0001F5FF"  # Semboller & piktogramlar
+        "\U0001F680-\U0001F6FF"  # Ulaşım & harita sembolleri
+        "\U0001F700-\U0001F77F"  # Alchemical semboller
+        "\U0001F780-\U0001F7FF"  # Geometrik şekiller extended
+        "\U0001F800-\U0001F8FF"  # Supplemental arrows-C
+        "\U0001F900-\U0001F9FF"  # Supplemental semboller & piktogramlar
+        "\U0001FA00-\U0001FA6F"  # Chess semboller
+        "\U0001FA70-\U0001FAFF"  # Semboller & piktogramlar extended-A
+        "\U00002702-\U000027B0"  # Dingbats
+        "\U000024C2-\U0001F251"  # Enclosed karakterler
+        "\U0001F1E0-\U0001F1FF"  # Bayraklar (iOS)
+        "\U00002600-\U000026FF"  # Misc semboller (güneş, ay, yıldız vb.)
+        "\U00002700-\U000027BF"  # Dingbats
+        "\U0000FE00-\U0000FE0F"  # Variation selectors
+        "\U0001F000-\U0001F02F"  # Mahjong tiles
+        "\U0001F0A0-\U0001F0FF"  # Playing cards
+        "]+",
+        flags=re.UNICODE
+    )
+    
+    # Emoji'leri kaldır
+    cleaned = emoji_pattern.sub('', text)
+    
+    # Ardışık boşlukları tek boşluğa indir
+    cleaned = re.sub(r' +', ' ', cleaned)
+    
+    # Satır başındaki/sonundaki boşlukları temizle
+    cleaned = '\n'.join(line.strip() for line in cleaned.split('\n'))
+    
+    return cleaned.strip()
+
+
 # Prompts (ai_interpretations.py'den kopyalandı)
 BIRTH_CHART_PROMPT = """
 Sen uzman bir astroloğsun. Aşağıdaki doğum haritası verilerine göre kapsamlı bir yorum yaz.
@@ -143,6 +187,8 @@ async def call_deepseek_async(session: aiohttp.ClientSession, prompt: str) -> Op
             data = await response.json()
             if "choices" in data and len(data["choices"]) > 0:
                 interpretation = data["choices"][0]["message"]["content"]
+                # Emoji'leri temizle (Android TalkBack erişilebilirlik için)
+                interpretation = remove_emojis(interpretation)
                 return {"success": True, "interpretation": interpretation}
             else:
                 return {"success": False, "error": "Invalid DeepSeek response format"}
@@ -186,6 +232,8 @@ async def call_zai_async(session: aiohttp.ClientSession, prompt: str) -> Optiona
             data = await response.json()
             if "choices" in data and len(data["choices"]) > 0:
                 interpretation = data["choices"][0]["message"]["content"]
+                # Emoji'leri temizle (Android TalkBack erişilebilirlik için)
+                interpretation = remove_emojis(interpretation)
                 return {"success": True, "interpretation": interpretation}
             else:
                 return {"success": False, "error": "Invalid Zai response format"}
@@ -234,6 +282,8 @@ async def call_openrouter_async(session: aiohttp.ClientSession, prompt: str, mod
             
             if "choices" in data and len(data["choices"]) > 0:
                 interpretation = data["choices"][0]["message"]["content"]
+                # Emoji'leri temizle (Android TalkBack erişilebilirlik için)
+                interpretation = remove_emojis(interpretation)
                 return {"success": True, "interpretation": interpretation}
             else:
                 logger.error("OpenRouter API response missing 'choices'")

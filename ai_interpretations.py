@@ -2,7 +2,7 @@
 Orbis - Kaderin Geometrisi
 AI Yorum Motoru v2.0
 
-Desteklenen LLM'ler: DeepSeek -> Gemini -> OpenRouter (Fallback zinciri)
+Desteklenen LLM'ler: DeepSeek -> OpenRouter (Fallback zinciri)
 """
 
 import os
@@ -11,7 +11,6 @@ import logging
 import time
 from datetime import datetime
 from dotenv import load_dotenv
-import google.generativeai as genai
 from openai import OpenAI
 
 load_dotenv()
@@ -128,22 +127,8 @@ def load_local_settings():
 local_settings = load_local_settings()
 
 # API Anahtarları
-GOOGLE_API_KEY = local_settings.get("llm_api_key") or os.getenv("GOOGLE_API_KEY")
 OPENROUTER_API_KEY = local_settings.get("openrouter_api_key") or os.getenv("OPENROUTER_API_KEY")
 DEEPSEEK_API_KEY = local_settings.get("deepseek_api_key") or os.getenv("DEEPSEEK_API_KEY")
-
-# Gemini Yapılandırması
-gemini_model = None
-if GOOGLE_API_KEY:
-    try:
-        genai.configure(api_key=GOOGLE_API_KEY)
-        model_name = local_settings.get("llm_model", "gemini-2.0-flash")
-        gemini_model = genai.GenerativeModel(model_name)
-        logging.info(f"Gemini API ({model_name}) yapılandırıldı.")
-    except Exception as e:
-        logging.error(f"Gemini yapılandırma hatası: {e}")
-else:
-    logging.warning("GOOGLE_API_KEY bulunamadı.")
 
 # ==========================================
 # TEMEL KURAL SETİ
@@ -1057,6 +1042,50 @@ TURKISH_MONTHS = {
     9: "Eylül", 10: "Ekim", 11: "Kasım", 12: "Aralık"
 }
 
+
+def remove_emojis(text: str) -> str:
+    """
+    Metinden tüm emoji karakterlerini temizler.
+    Android TalkBack erişilebilirlik okuyucusu emoji'leri sesli okuduğu için
+    AI yorumlarından emoji'leri kaldırıyoruz.
+    """
+    import re
+    
+    # Kapsamlı emoji regex pattern'i
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # Yüz ifadeleri (emoticons)
+        "\U0001F300-\U0001F5FF"  # Semboller & piktogramlar
+        "\U0001F680-\U0001F6FF"  # Ulaşım & harita sembolleri
+        "\U0001F700-\U0001F77F"  # Alchemical semboller
+        "\U0001F780-\U0001F7FF"  # Geometrik şekiller extended
+        "\U0001F800-\U0001F8FF"  # Supplemental arrows-C
+        "\U0001F900-\U0001F9FF"  # Supplemental semboller & piktogramlar
+        "\U0001FA00-\U0001FA6F"  # Chess semboller
+        "\U0001FA70-\U0001FAFF"  # Semboller & piktogramlar extended-A
+        "\U00002702-\U000027B0"  # Dingbats
+        "\U000024C2-\U0001F251"  # Enclosed karakterler
+        "\U0001F1E0-\U0001F1FF"  # Bayraklar (iOS)
+        "\U00002600-\U000026FF"  # Misc semboller (güneş, ay, yıldız vb.)
+        "\U00002700-\U000027BF"  # Dingbats
+        "\U0000FE00-\U0000FE0F"  # Variation selectors
+        "\U0001F000-\U0001F02F"  # Mahjong tiles
+        "\U0001F0A0-\U0001F0FF"  # Playing cards
+        "]+",
+        flags=re.UNICODE
+    )
+    
+    # Emoji'leri kaldır
+    cleaned = emoji_pattern.sub('', text)
+    
+    # Ardışık boşlukları tek boşluğa indir
+    cleaned = re.sub(r' +', ' ', cleaned)
+    
+    # Satır başındaki/sonundaki boşlukları temizle
+    cleaned = '\n'.join(line.strip() for line in cleaned.split('\n'))
+    
+    return cleaned.strip()
+
 def get_today_formatted():
     """Bugünün tarihini Türkçe formatla."""
     now = datetime.now()
@@ -1433,40 +1462,6 @@ def call_deepseek(prompt: str) -> str:
         http_client.close()
 
 
-def call_gemini(prompt: str) -> str:
-    """Gemini API çağrısı."""
-    if not gemini_model:
-        raise ValueError("Gemini model yapılandırılmamış")
-
-    try:
-        # Gemini için güvenlik ayarları ve generation config
-        generation_config = {
-            "temperature": 0.4,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 4000,
-        }
-
-        response = gemini_model.generate_content(
-            prompt,
-            generation_config=generation_config,
-            safety_settings=[
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            ]
-        )
-
-        if not response.text:
-            raise ValueError("Gemini boş yanıt döndürdü (muhtemelen güvenlik filtresi).")
-
-        return response.text
-    except Exception as e:
-        logging.error(f"Gemini API Hatası: {str(e)}")
-        raise
-
-
 def call_openrouter(prompt: str) -> str:
     """OpenRouter API çağrısı (fallback)."""
     if not OPENROUTER_API_KEY:
@@ -1512,8 +1507,6 @@ def call_llm_with_fallback(prompt: str) -> str:
     providers = []
     if DEEPSEEK_API_KEY:
         providers.append(("DeepSeek", call_deepseek))
-    if gemini_model:
-        providers.append(("Gemini", call_gemini))
     if OPENROUTER_API_KEY:
         providers.append(("OpenRouter", call_openrouter))
 
@@ -1585,6 +1578,9 @@ def get_ai_interpretation_engine(astro_data: dict, interpretation_type: str, use
         
         # LLM çağrısı yap
         interpretation = call_llm_with_fallback(prompt)
+        
+        # Emoji'leri temizle (Android TalkBack erişilebilirlik için)
+        interpretation = remove_emojis(interpretation)
         
         # 🎨 Renkli Debug Çıktısı - Başarılı Yanıt
         print_ai_response_debug(True, interpretation_type, interpretation)

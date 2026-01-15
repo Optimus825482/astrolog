@@ -15,16 +15,18 @@ def check_usage():
     """Kullanıcının kullanım durumunu kontrol et"""
     data = request.get_json()
     device_id = data.get("device_id")
+    email = data.get("email")  # Admin kontrolü için email
     
     if not device_id:
         return jsonify({"error": "device_id gerekli"}), 400
     
-    usage = usage_tracker.get_user_usage(device_id)
-    can_use = usage_tracker.can_use_feature(device_id)
+    usage = usage_tracker.get_user_usage(device_id, email)
+    can_use = usage_tracker.can_use_feature(device_id, email=email)
     
     return jsonify({
         "usage": usage,
-        "can_use": can_use
+        "can_use": can_use,
+        "show_ads": usage.get("show_ads", True)
     })
 
 @monetization_bp.route("/record-usage", methods=["POST"])
@@ -33,11 +35,12 @@ def record_usage():
     data = request.get_json()
     device_id = data.get("device_id")
     feature = data.get("feature", "interpretation")
+    email = data.get("email")  # Admin kontrolü için email
     
     if not device_id:
         return jsonify({"error": "device_id gerekli"}), 400
     
-    result = usage_tracker.record_usage(device_id, feature)
+    result = usage_tracker.record_usage(device_id, feature, email)
     return jsonify(result)
 
 @monetization_bp.route("/plans", methods=["GET"])
@@ -64,12 +67,15 @@ def premium_status():
     """Premium durumunu kontrol et"""
     data = request.get_json()
     device_id = data.get("device_id")
+    email = data.get("email")  # Admin kontrolü için email
     
     if not device_id:
         return jsonify({"error": "device_id gerekli"}), 400
     
-    usage = usage_tracker.get_user_usage(device_id)
+    usage = usage_tracker.get_user_usage(device_id, email)
     return jsonify({
         "is_premium": usage["is_premium"],
-        "premium_until": usage["premium_until"]
+        "is_admin": usage.get("is_admin", False),
+        "premium_until": usage["premium_until"],
+        "show_ads": usage.get("show_ads", True)
     })

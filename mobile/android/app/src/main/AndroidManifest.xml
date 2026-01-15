@@ -5,6 +5,11 @@
     <!-- Ziegler (Permissions) - application ÖNCE alma -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Push Notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -16,11 +21,10 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
 
-        <!-- AdMob App ID - Test Mode için Google'ın örnek App ID'si -->
-        <!-- Production'da kendi App ID'nizi kullanın: ca-app-pub-244409390178357~4683309361 -->
+        <!-- AdMob App ID - Production -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-2444093901783574~4683309361"/>
 
         <!-- GDPR in measurement delay -->
         <meta-data
@@ -37,6 +41,22 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            
+            <!-- Deep Link for OAuth Redirect -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="ast-kappa.vercel.app" />
+            </intent-filter>
+            
+            <!-- Custom URL Scheme for OAuth -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.orbis.astrology" android:host="auth" />
             </intent-filter>
         </activity>
 

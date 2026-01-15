@@ -14,12 +14,26 @@
         { "key": "Service-Worker-Allowed", "value": "/" },
         { "key": "Content-Type", "value": "application/javascript" }
       ]
+    },
+    {
+      "source": "/static/manifest.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" }
+      ]
     }
   ],
   "rewrites": [
     {
       "source": "/sw.js",
       "destination": "/static/js/sw.js"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "destination": "/api/index"
     },
     {
       "source": "/(.*)",

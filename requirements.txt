@@ -10,7 +10,6 @@ numpy
 pytz==2023.3
 
 # AI/ML & APIs
-google-generativeai>=0.8.0
 openai>=1.50.0
 httpx>=0.27.0
 python-dotenv==1.0.0

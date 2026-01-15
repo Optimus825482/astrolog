@@ -1,10 +1,10 @@
-const CACHE_NAME = "orbis-v2";
+const CACHE_NAME = "orbis-v3";
 const ASSETS = [
   "/",
   "/static/css/tailwind.output.css",
   "/static/css/custom.css",
   "/static/js/app.js",
-  "/static/manifest.json",
+  "/manifest.json",
   "/static/ai-avatar-R.png",
   "/static/all-icons/Android/Icon-192.png",
   "/static/all-icons/Android/Icon-512.png",

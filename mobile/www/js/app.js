@@ -13,6 +13,10 @@ const OrbisApp = {
   // Hangi URL kullanılacak
   USE_DEV: false,
 
+  // Kullanıcı bilgileri
+  currentUser: null,
+  deviceId: null,
+
   /**
    * Uygulamayı başlat
    */
@@ -20,6 +24,9 @@ const OrbisApp = {
     console.log("[ORBIS] Initializing...");
 
     try {
+      // Device ID oluştur/al
+      this.deviceId = this.getOrCreateDeviceId();
+
       // Capacitor kontrolü
       if (typeof Capacitor !== "undefined" && Capacitor.isNativePlatform()) {
         await this.initCapacitor();
@@ -33,6 +40,49 @@ const OrbisApp = {
       console.log("[ORBIS] Init complete");
     } catch (error) {
       console.error("[ORBIS] Init error:", error);
+    }
+  },
+
+  /**
+   * Device ID oluştur veya mevcut olanı al
+   */
+  getOrCreateDeviceId() {
+    let deviceId = localStorage.getItem("orbis_device_id");
+    if (!deviceId) {
+      deviceId =
+        "device_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem("orbis_device_id", deviceId);
+    }
+    return deviceId;
+  },
+
+  /**
+   * Kullanıcı giriş yaptığında çağır
+   * Firebase auth'dan user bilgisi gelecek
+   * @param {Object} user - Firebase user object
+   */
+  async onUserLogin(user) {
+    this.currentUser = user;
+    console.log("[ORBIS] User logged in:", user?.email);
+
+    // Reklam durumunu kontrol et
+    if (window.OrbisAds && user?.email) {
+      await window.OrbisAds.checkAdStatus(this.deviceId, user.email);
+    }
+  },
+
+  /**
+   * Kullanıcı çıkış yaptığında çağır
+   */
+  onUserLogout() {
+    this.currentUser = null;
+    console.log("[ORBIS] User logged out");
+
+    // Reklamları tekrar aktif et
+    if (window.OrbisAds) {
+      window.OrbisAds.showAds = true;
+      window.OrbisAds.isAdmin = false;
+      window.OrbisAds.isPremium = false;
     }
   },
 

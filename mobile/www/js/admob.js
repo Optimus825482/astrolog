@@ -1,23 +1,24 @@
 /**
  * ORBIS AdMob Integration
  * Banner, Interstitial ve Rewarded Ad yönetimi
+ * Admin kullanıcılara reklam gösterilmez
  */
 
 const OrbisAds = {
-  // Test Ad Unit IDs - Google'ın resmi test ID'leri
-  // Production'da kendi ID'lerinizi kullanın
+  // Ad Unit IDs
   AD_UNITS: {
-    BANNER: "ca-app-pub-3940256099942544/6300978111", // Test Banner
-    INTERSTITIAL: "ca-app-pub-3940256099942544/1033173712", // Test Interstitial
-    REWARDED: "ca-app-pub-3940256099942544/5224354917", // Test Rewarded
+    // Test Ad Unit IDs (DEV) - Emülatör ve geliştirme için
+    BANNER: "ca-app-pub-3940256099942544/6300978111",
+    INTERSTITIAL: "ca-app-pub-3940256099942544/1033173712",
+    REWARDED: "ca-app-pub-3940256099942544/5224354917",
+
+    // Production Ad Unit IDs (LIVE) - Release build için bunları kullan
+    // BANNER: "ca-app-pub-244409390178357/5860659669",
+    // INTERSTITIAL: "ca-app-pub-244409390178357/8840184408",
+    // REWARDED: "ca-app-pub-244409390178357/4900939398",
   },
 
-  // Production Ad Unit IDs (sonra kullanılacak)
-  // BANNER: "ca-app-pub-244409390178357/5860659669",
-  // INTERSTITIAL: "ca-app-pub-244409390178357/8840184408",
-  // REWARDED: "ca-app-pub-244409390178357/4900939398",
-
-  // App ID
+  // App ID (Test)
   APP_ID: "ca-app-pub-3940256099942544~3347511713", // Test App ID
 
   // State
@@ -25,6 +26,49 @@ const OrbisAds = {
   interstitialLoaded: false,
   rewardedLoaded: false,
   interstitialShowCount: 0,
+
+  // Admin/Premium kontrolü - reklam gösterilmeyecek kullanıcılar
+  showAds: true, // Varsayılan: reklam göster
+  isAdmin: false,
+  isPremium: false,
+
+  /**
+   * Kullanıcının reklam durumunu kontrol et
+   * @param {string} deviceId - Cihaz ID
+   * @param {string} email - Kullanıcı email (Firebase auth'dan)
+   */
+  async checkAdStatus(deviceId, email) {
+    try {
+      const response = await fetch(
+        "https://ast-kappa.vercel.app/api/monetization/check-usage",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ device_id: deviceId, email: email }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        this.showAds = data.usage?.show_ads !== false;
+        this.isAdmin = data.usage?.is_admin === true;
+        this.isPremium = data.usage?.is_premium === true;
+
+        console.log(
+          `[AdMob] Ad status - showAds: ${this.showAds}, isAdmin: ${this.isAdmin}, isPremium: ${this.isPremium}`
+        );
+
+        // Admin veya premium ise banner'ı gizle
+        if (!this.showAds) {
+          this.hideBanner();
+        }
+      }
+    } catch (error) {
+      console.error("[AdMob] Check ad status error:", error);
+      // Hata durumunda varsayılan olarak reklam göster
+      this.showAds = true;
+    }
+  },
 
   /**
    * AdMob'u başlat
@@ -43,8 +87,7 @@ const OrbisAds = {
 
       // AdMob'u initialize et
       await AdMob.initialize({
-        initializeForTesting: true, // Production'da false yapın
-        testingDevices: ["YOUR_TEST_DEVICE_ID"],
+        initializeForTesting: true, // Test mode - DEV için
         // requestTrackingAuthorization: true, // iOS için
       });
 
@@ -111,6 +154,12 @@ const OrbisAds = {
    * @param {string} position - 'TOP' veya 'BOTTOM'
    */
   async showBanner(position = "BOTTOM") {
+    // Admin veya premium kullanıcıya reklam gösterme
+    if (!this.showAds) {
+      console.log("[AdMob] Ads disabled for this user (admin/premium)");
+      return;
+    }
+
     if (!this.isInitialized) {
       console.log("[AdMob] Not initialized");
       return;
@@ -124,7 +173,7 @@ const OrbisAds = {
         adSize: "ADAPTIVE_BANNER",
         position: position === "TOP" ? "TOP_CENTER" : "BOTTOM_CENTER",
         margin: 0,
-        isTesting: true, // Production'da false
+        isTesting: true, // Test mode - DEV için
       });
 
       console.log("[AdMob] Banner shown");
@@ -164,7 +213,7 @@ const OrbisAds = {
 
       await AdMob.prepareInterstitial({
         adId: this.AD_UNITS.INTERSTITIAL,
-        isTesting: true,
+        isTesting: true, // Test mode - DEV için
       });
     } catch (error) {
       console.error("[AdMob] Load interstitial error:", error);
@@ -176,6 +225,12 @@ const OrbisAds = {
    * Her 3 işlemde bir gösterir
    */
   async showInterstitial(force = false) {
+    // Admin veya premium kullanıcıya reklam gösterme
+    if (!this.showAds) {
+      console.log("[AdMob] Ads disabled for this user (admin/premium)");
+      return false;
+    }
+
     if (!this.isInitialized || !this.interstitialLoaded) {
       console.log("[AdMob] Interstitial not ready");
       return false;
@@ -212,7 +267,7 @@ const OrbisAds = {
 
       await AdMob.prepareRewardVideoAd({
         adId: this.AD_UNITS.REWARDED,
-        isTesting: true,
+        isTesting: true, // Test mode - DEV için
       });
     } catch (error) {
       console.error("[AdMob] Load rewarded error:", error);
@@ -224,6 +279,14 @@ const OrbisAds = {
    * @returns {Promise<boolean>} Ödül kazanıldı mı
    */
   async showRewarded() {
+    // Admin veya premium kullanıcıya reklam gösterme - direkt ödül ver
+    if (!this.showAds) {
+      console.log(
+        "[AdMob] Ads disabled for this user (admin/premium) - granting reward"
+      );
+      return true; // Admin/premium için direkt ödül ver
+    }
+
     if (!this.isInitialized || !this.rewardedLoaded) {
       console.log("[AdMob] Rewarded not ready");
       return false;

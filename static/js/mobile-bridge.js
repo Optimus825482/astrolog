@@ -224,7 +224,7 @@ const OrbisBridge = {
     localStorage.setItem("orbis_notification_asked", "true");
 
     try {
-      // Capacitor PushNotifications varsa kullan
+      // Capacitor PushNotifications varsa kullan (Native Android/iOS)
       if (
         typeof Capacitor !== "undefined" &&
         Capacitor.Plugins.PushNotifications
@@ -235,17 +235,123 @@ const OrbisBridge = {
         console.log("[ORBIS] Push permission result:", result);
 
         if (result.receive === "granted") {
+          // Token alındığında listener
+          PushNotifications.addListener("registration", async (token) => {
+            console.log("[ORBIS] FCM Token:", token.value);
+
+            // Token'ı backend'e kaydet ve topic'e subscribe et
+            await this.registerFCMToken(token.value, "android");
+          });
+
+          // Hata listener
+          PushNotifications.addListener("registrationError", (error) => {
+            console.error("[ORBIS] FCM Registration error:", error);
+          });
+
+          // Bildirim geldiğinde (foreground)
+          PushNotifications.addListener(
+            "pushNotificationReceived",
+            (notification) => {
+              console.log("[ORBIS] Push received:", notification);
+              // Foreground'da bildirim göster
+              this.showInAppNotification(notification.title, notification.body);
+            }
+          );
+
+          // Bildirime tıklandığında
+          PushNotifications.addListener(
+            "pushNotificationActionPerformed",
+            (notification) => {
+              console.log("[ORBIS] Push action:", notification);
+            }
+          );
+
           await PushNotifications.register();
           console.log("[ORBIS] Push notifications registered");
         }
-      } else if ("Notification" in window) {
-        // Web Notification API fallback
+      } else if ("Notification" in window && "serviceWorker" in navigator) {
+        // Web Push fallback
         const permission = await Notification.requestPermission();
         console.log("[ORBIS] Web notification permission:", permission);
+
+        if (permission === "granted") {
+          // Firebase Web Push için messaging kullan
+          await this.initWebPush();
+        }
       }
     } catch (error) {
       console.error("[ORBIS] Notification permission error:", error);
     }
+  },
+
+  async registerFCMToken(token, platform) {
+    try {
+      // Backend'e token kaydet
+      const response = await fetch("/api/fcm/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: token,
+          platform: platform,
+          topics: ["all_users"], // Varsayılan topic'lere abone ol
+        }),
+      });
+
+      const data = await response.json();
+      console.log("[ORBIS] FCM token registered:", data);
+
+      // Local'e de kaydet
+      localStorage.setItem("orbis_fcm_token", token);
+    } catch (error) {
+      console.error("[ORBIS] FCM token registration error:", error);
+    }
+  },
+
+  async initWebPush() {
+    try {
+      // Firebase Web SDK varsa kullan
+      if (typeof firebase !== "undefined" && firebase.messaging) {
+        const messaging = firebase.messaging();
+        const token = await messaging.getToken({
+          vapidKey: "YOUR_VAPID_KEY", // Firebase Console'dan al
+        });
+
+        if (token) {
+          await this.registerFCMToken(token, "web");
+        }
+      }
+    } catch (error) {
+      console.error("[ORBIS] Web push init error:", error);
+    }
+  },
+
+  showInAppNotification(title, body) {
+    // Foreground'da güzel bir in-app notification göster
+    const notifHTML = `
+      <div id="in-app-notif" class="fixed top-4 left-4 right-4 z-[300] animate-slide-down">
+        <div class="bg-slate-800/95 backdrop-blur-xl rounded-2xl p-4 border border-white/10 shadow-2xl flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-round text-primary">notifications</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm text-white">${title || "ORBIS"}</div>
+            <p class="text-xs text-slate-400 mt-1 line-clamp-2">${
+              body || ""
+            }</p>
+          </div>
+          <button onclick="document.getElementById('in-app-notif')?.remove()" class="text-slate-500 hover:text-white">
+            <span class="material-icons-round text-lg">close</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML("beforeend", notifHTML);
+
+    // 5 saniye sonra otomatik kapat
+    setTimeout(() => {
+      document.getElementById("in-app-notif")?.remove();
+    }, 5000);
   },
 
   declineNotifications() {
@@ -309,12 +415,18 @@ const OrbisBridge = {
   // ═══════════════════════════════════════════════════════════════
 
   async requestAnalysis(onSuccess, onCancel) {
-    console.log("[ORBIS] Analiz isteği...");
+    console.log("[ORBIS] Analiz isteği başladı...");
+    console.log("[ORBIS] onSuccess callback:", typeof onSuccess);
+    console.log("[ORBIS] onCancel callback:", typeof onCancel);
 
     // Analiz yapılabilir mi kontrol et
     if (!this.canAnalyze()) {
+      console.log("[ORBIS] Analiz yapılamaz - limit aşıldı");
       this.showLimitReachedModal();
-      if (onCancel) onCancel();
+      if (onCancel) {
+        console.log("[ORBIS] Calling onCancel...");
+        onCancel();
+      }
       return;
     }
 
@@ -326,12 +438,16 @@ const OrbisBridge = {
       this.saveState();
       this.updateUI();
       console.log("[ORBIS] Premium analiz, kalan kredi:", this.state.credits);
-      if (onSuccess) onSuccess();
+      if (onSuccess) {
+        console.log("[ORBIS] Calling onSuccess (premium)...");
+        onSuccess();
+      }
       return;
     }
 
     // Ücretsiz kullanıcı - reklam gerekiyor mu?
     if (this.needsAd()) {
+      console.log("[ORBIS] Reklam gerekiyor...");
       // Reklam izletmemiz lazım
       const adWatched = await this.showRewardedAdFlow();
 
@@ -349,9 +465,16 @@ const OrbisBridge = {
           "[ORBIS] Reklamlı analiz, bugünkü kullanım:",
           this.state.todayUsage
         );
-        if (onSuccess) onSuccess();
+        if (onSuccess) {
+          console.log("[ORBIS] Calling onSuccess (ad watched)...");
+          onSuccess();
+        }
       } else {
-        if (onCancel) onCancel();
+        console.log("[ORBIS] Reklam izlenmedi");
+        if (onCancel) {
+          console.log("[ORBIS] Calling onCancel (ad not watched)...");
+          onCancel();
+        }
       }
     } else {
       // İlk gün, ilk 3 analiz - reklamsız
@@ -363,7 +486,18 @@ const OrbisBridge = {
         "[ORBIS] Ücretsiz analiz (hoşgeldin), bugünkü kullanım:",
         this.state.todayUsage
       );
-      if (onSuccess) onSuccess();
+
+      if (onSuccess) {
+        console.log("[ORBIS] Calling onSuccess (free)...");
+        try {
+          onSuccess();
+          console.log("[ORBIS] onSuccess called successfully");
+        } catch (err) {
+          console.error("[ORBIS] onSuccess error:", err);
+        }
+      } else {
+        console.error("[ORBIS] onSuccess is not defined!");
+      }
     }
   },
 

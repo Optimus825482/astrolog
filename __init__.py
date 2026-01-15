@@ -6,7 +6,7 @@ import logging
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-from flask import Flask
+from flask import Flask, send_from_directory, jsonify
 import config
 from extensions import cors, init_extensions
 
@@ -38,6 +38,15 @@ def create_app(test_config=None):
         app.register_blueprint(admin_bp)
     except ImportError as e:
         logging.warning(f"Admin routes yüklenemedi: {e}")
+    
+    # Android App Links - assetlinks.json
+    @app.route('/.well-known/assetlinks.json')
+    def assetlinks():
+        return send_from_directory(
+            os.path.join(app.static_folder, '.well-known'),
+            'assetlinks.json',
+            mimetype='application/json'
+        )
     
     # Filtreleri ekle
     import utils

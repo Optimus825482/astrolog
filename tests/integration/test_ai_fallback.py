@@ -14,15 +14,15 @@ def test_ai_fallback_chain_success():
 def test_ai_fallback_chain_trigger():
     """Test the fallback chain when the first provider fails."""
     with patch("ai_interpretations.call_deepseek") as mock_ds, \
-         patch("ai_interpretations.call_gemini") as mock_gemini:
+         patch("ai_interpretations.call_openrouter") as mock_openrouter:
 
         mock_ds.side_effect = Exception("DeepSeek Down")
-        mock_gemini.return_value = "Gemini rescue"
+        mock_openrouter.return_value = "OpenRouter rescue"
 
         result = call_llm_with_fallback("Test prompt")
-        assert result == "Gemini rescue"
+        assert result == "OpenRouter rescue"
         assert mock_ds.call_count == 2  # 2 attempts per provider
-        mock_gemini.assert_called_once()
+        mock_openrouter.assert_called_once()
 
 def test_get_ai_interpretation_engine_integration():
     """Test the main engine function integration."""

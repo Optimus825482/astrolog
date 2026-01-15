@@ -26,17 +26,58 @@ endblock %} {% block head %} {{ super() }}
     overflow-y: auto;
   }
   .location-suggestion-item {
-    padding: 0.75rem 1rem;
+    padding: 1rem 1.25rem;
     cursor: pointer;
     color: #e2e8f0;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     transition: background-color 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    -webkit-tap-highlight-color: rgba(91, 43, 238, 0.3);
+    touch-action: manipulation;
   }
-  .location-suggestion-item:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+  .location-suggestion-item:last-child {
+    border-bottom: none;
+  }
+  .location-suggestion-item:hover,
+  .location-suggestion-item:active {
+    background-color: rgba(91, 43, 238, 0.2);
+  }
+  .flash-message {
+    animation: slideDown 0.3s ease-out;
+  }
+  @keyframes slideDown {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 </style>
 {% endblock %} {% block content %}
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages() %} {% if messages %}
+<div class="fixed top-4 left-1/2 -translate-x-1/2 z-[200] w-full max-w-md px-4">
+  {% for message in messages %}
+  <div
+    class="flash-message bg-red-500/90 backdrop-blur-sm text-white px-4 py-3 rounded-xl mb-2 shadow-lg border border-red-400/30 flex items-center gap-3"
+  >
+    <span class="material-icons-round text-lg">warning</span>
+    <span class="text-sm">{{ message }}</span>
+    <button
+      onclick="this.parentElement.remove()"
+      class="ml-auto text-white/70 hover:text-white"
+    >
+      <span class="material-icons-round text-lg">close</span>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %} {% endwith %}
+
 <div
   class="relative min-h-screen flex flex-col items-center justify-center px-6 py-10 max-w-lg mx-auto w-full"
 >
@@ -524,7 +565,46 @@ endblock %} {% block head %} {{ super() }}
     if (!displayDate || displayDate.length !== 10) return "";
     const parts = displayDate.split("/");
     if (parts.length !== 3) return "";
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+
+    // Validation
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return "";
+    if (day < 1 || day > 31) return "";
+    if (month < 1 || month > 12) return "";
+    if (year < 1900 || year > 2100) return "";
+
+    // Format with leading zeros
+    const dayStr = day.toString().padStart(2, "0");
+    const monthStr = month.toString().padStart(2, "0");
+
+    return `${year}-${monthStr}-${dayStr}`;
+  }
+
+  // Validate date format (GG/AA/YYYY)
+  function isValidDate(dateStr) {
+    if (!dateStr || dateStr.length !== 10) return false;
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) return false;
+
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+    if (day < 1 || day > 31) return false;
+    if (month < 1 || month > 12) return false;
+    if (year < 1900 || year > 2100) return false;
+
+    // Check if date is valid (e.g., not 31/02/2000)
+    const testDate = new Date(year, month - 1, day);
+    return (
+      testDate.getDate() === day &&
+      testDate.getMonth() === month - 1 &&
+      testDate.getFullYear() === year
+    );
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -574,67 +654,173 @@ endblock %} {% block head %} {{ super() }}
     orbisForm.addEventListener("submit", function (e) {
       e.preventDefault(); // Önce formu durdur
 
-      // Convert date format before submit
-      const birthDateEl = document.getElementById("birth_date");
-      const transitDateEl = document.getElementById("transit_date");
+      // Validation - latitude/longitude kontrolü
+      const latitude = document.getElementById("latitude").value;
+      const longitude = document.getElementById("longitude").value;
+      const locationInput = document.getElementById("suggestionInput");
 
-      // Store original display values
-      const birthDateDisplay = birthDateEl.value;
-      const transitDateDisplay = transitDateEl.value;
+      if (!latitude || !longitude) {
+        // Highlight the location input
+        locationInput.style.borderColor = "#ef4444";
+        locationInput.style.boxShadow = "0 0 0 2px rgba(239, 68, 68, 0.3)";
+        locationInput.focus();
 
-      // Convert to backend format
-      birthDateEl.value = convertDateForBackend(birthDateDisplay);
-      if (transitDateDisplay) {
-        transitDateEl.value = convertDateForBackend(transitDateDisplay);
+        alert(
+          "⚠️ Doğum yeri seçilmedi!\n\nŞehir adını yazın ve açılan listeden bir seçenek seçin."
+        );
+
+        setTimeout(() => {
+          locationInput.style.borderColor = "";
+          locationInput.style.boxShadow = "";
+        }, 3000);
+        return;
       }
+
+      // Date validation
+      const birthDateEl = document.getElementById("birth_date");
+      const birthDateDisplay = birthDateEl.value;
+
+      if (!birthDateDisplay || birthDateDisplay.length !== 10) {
+        alert(
+          "Lütfen doğum tarihini GG/AA/YYYY formatında girin!\nÖrnek: 19/06/1982"
+        );
+        birthDateEl.focus();
+        return;
+      }
+
+      // Validate date
+      if (!isValidDate(birthDateDisplay)) {
+        alert(
+          "Geçersiz tarih!\n\nFormat: GG/AA/YYYY\nÖrnek: 19/06/1982\n\nGün: 01-31\nAy: 01-12\nYıl: 1900-2100"
+        );
+        birthDateEl.style.borderColor = "#ef4444";
+        birthDateEl.focus();
+        setTimeout(() => (birthDateEl.style.borderColor = ""), 3000);
+        return;
+      }
+
+      // Convert and validate date format
+      const convertedDate = convertDateForBackend(birthDateDisplay);
+      if (!convertedDate) {
+        alert(
+          "Tarih dönüştürme hatası! GG/AA/YYYY formatında girin.\nÖrnek: 19/06/1982"
+        );
+        return;
+      }
+
+      console.log(
+        "[ORBIS] Form submit - birthDate:",
+        birthDateDisplay,
+        "-> converted:",
+        convertedDate
+      );
+      console.log("[ORBIS] Latitude:", latitude, "Longitude:", longitude);
+
+      // Transit date conversion
+      const transitDateEl = document.getElementById("transit_date");
+      const transitDateDisplay = transitDateEl.value;
 
       // Reklam kontrolü yap
       if (window.OrbisBridge) {
-        window.OrbisBridge.requestAnalysis(
-          // Başarılı - reklam izlendi veya premium
-          function () {
-            submitForm(birthDateDisplay);
-          },
-          // İptal edildi
-          function () {
-            console.log("[ORBIS] Analiz iptal edildi");
-            // Restore display format
-            birthDateEl.value = birthDateDisplay;
-            transitDateEl.value = transitDateDisplay;
+        console.log("[ORBIS] Calling OrbisBridge.requestAnalysis...");
+
+        // requestAnalysis async fonksiyon, callback yerine Promise kullan
+        const successCallback = function () {
+          console.log("[ORBIS] requestAnalysis SUCCESS callback triggered");
+          try {
+            submitForm(birthDateDisplay, transitDateDisplay, convertedDate);
+          } catch (err) {
+            console.error("[ORBIS] Error in success callback:", err);
+            alert("Hata: " + err.message);
           }
-        );
+        };
+
+        const cancelCallback = function () {
+          console.log("[ORBIS] Analiz iptal edildi");
+        };
+
+        // Async fonksiyonu çağır
+        try {
+          window.OrbisBridge.requestAnalysis(successCallback, cancelCallback);
+        } catch (err) {
+          console.error("[ORBIS] requestAnalysis error:", err);
+          // Hata olursa direkt submit et
+          submitForm(birthDateDisplay, transitDateDisplay, convertedDate);
+        }
       } else {
+        console.log("[ORBIS] No OrbisBridge, direct submit");
         // Bridge yoksa direkt submit
-        submitForm(birthDateDisplay);
+        submitForm(birthDateDisplay, transitDateDisplay, convertedDate);
       }
     });
 
-    function submitForm(birthDateDisplay) {
-      $("#loadingOverlay").removeClass("hidden").addClass("flex");
-      let msgIdx = 0;
-      const msgInterval = setInterval(() => {
-        msgIdx = (msgIdx + 1) % loadingMessages.length;
-        $("#loading-message").fadeOut(400, function () {
-          $(this).text(loadingMessages[msgIdx]).fadeIn(400);
+    function submitForm(
+      birthDateDisplay,
+      transitDateDisplay,
+      convertedBirthDate
+    ) {
+      try {
+        console.log("[ORBIS] submitForm called with:", {
+          birthDateDisplay,
+          transitDateDisplay,
+          convertedBirthDate,
         });
-      }, 2500);
 
-      const formData = {
-        name: document.getElementById("name").value,
-        birth_date: birthDateDisplay, // Save display format
-        birth_time: document.getElementById("birth_time").value,
-        birth_place_suggestion:
-          document.getElementById("suggestionInput").value,
-        latitude: document.getElementById("latitude").value,
-        longitude: document.getElementById("longitude").value,
-      };
-      localStorage.setItem("astro_user_data", JSON.stringify(formData));
+        $("#loadingOverlay").removeClass("hidden").addClass("flex");
+        let msgIdx = 0;
+        const msgInterval = setInterval(() => {
+          msgIdx = (msgIdx + 1) % loadingMessages.length;
+          $("#loading-message").fadeOut(400, function () {
+            $(this).text(loadingMessages[msgIdx]).fadeIn(400);
+          });
+        }, 2500);
 
-      // Formu gönder
-      document.getElementById("orbisForm").submit();
+        // Save display format to localStorage
+        const formData = {
+          name: document.getElementById("name").value,
+          birth_date: birthDateDisplay,
+          birth_time: document.getElementById("birth_time").value,
+          birth_place_suggestion:
+            document.getElementById("suggestionInput").value,
+          latitude: document.getElementById("latitude").value,
+          longitude: document.getElementById("longitude").value,
+        };
+        localStorage.setItem("astro_user_data", JSON.stringify(formData));
+        console.log("[ORBIS] Saved to localStorage:", formData);
+
+        // Set backend format before submit
+        document.getElementById("birth_date").value = convertedBirthDate;
+
+        if (transitDateDisplay && transitDateDisplay.length === 10) {
+          const convertedTransit = convertDateForBackend(transitDateDisplay);
+          if (convertedTransit) {
+            document.getElementById("transit_date").value = convertedTransit;
+          }
+        }
+
+        // Final form values
+        const finalValues = {
+          name: document.getElementById("name").value,
+          birth_date: document.getElementById("birth_date").value,
+          birth_time: document.getElementById("birth_time").value,
+          latitude: document.getElementById("latitude").value,
+          longitude: document.getElementById("longitude").value,
+          transit_date: document.getElementById("transit_date").value,
+          transit_time: document.getElementById("transit_time").value,
+        };
+        console.log("[ORBIS] Final form values:", finalValues);
+
+        // Formu gönder
+        console.log("[ORBIS] Submitting form NOW...");
+        document.getElementById("orbisForm").submit();
+      } catch (error) {
+        console.error("[ORBIS] submitForm ERROR:", error);
+        alert("Form gönderilirken hata: " + error.message);
+        $("#loadingOverlay").addClass("hidden").removeClass("flex");
+      }
     }
 
-    // Location Autocomplete
+    // Location Autocomplete - Android WebView compatible
     setupLocationSearch(
       "suggestionInput",
       "suggestionResults",
@@ -651,46 +837,118 @@ endblock %} {% block head %} {{ super() }}
     function setupLocationSearch(inputId, resultsId, latId, lngId) {
       const $input = $("#" + inputId);
       const $results = $("#" + resultsId);
+      let searchTimeout = null;
 
       $input.on("input", function () {
         const query = $(this).val().trim();
+
+        // Debounce search
+        if (searchTimeout) clearTimeout(searchTimeout);
+
         if (query.length >= 3) {
-          const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-            query
-          )}&key=${OPENCAGE_API_KEY}&limit=5&language=tr`;
-          fetch(url)
-            .then((res) => res.json())
-            .then((data) => {
-              $results.empty().removeClass("hidden");
-              if (data.results && data.results.length > 0) {
-                data.results.forEach((res) => {
-                  const $item = $(
-                    '<div class="location-suggestion-item"></div>'
+          searchTimeout = setTimeout(() => {
+            console.log("[ORBIS] Location search:", query);
+            const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+              query
+            )}&key=${OPENCAGE_API_KEY}&limit=5&language=tr`;
+
+            fetch(url)
+              .then((res) => res.json())
+              .then((data) => {
+                $results.empty().removeClass("hidden");
+                console.log(
+                  "[ORBIS] Location results:",
+                  data.results?.length || 0
+                );
+
+                if (data.results && data.results.length > 0) {
+                  data.results.forEach((res) => {
+                    const $item = $(
+                      '<div class="location-suggestion-item"></div>'
+                    )
+                      .text(res.formatted)
+                      .attr("data-lat", res.geometry.lat)
+                      .attr("data-lng", res.geometry.lng)
+                      .attr("data-name", res.formatted);
+                    $results.append($item);
+                  });
+                } else {
+                  $results.html(
+                    '<div class="location-suggestion-item text-slate-500">Sonuç bulunamadı</div>'
+                  );
+                }
+              })
+              .catch((err) => {
+                console.error("[ORBIS] Location search error:", err);
+                $results
+                  .html(
+                    '<div class="location-suggestion-item text-red-400">Arama hatası</div>'
                   )
-                    .text(res.formatted)
-                    .on("click", function () {
-                      $input.val(res.formatted);
-                      $("#" + latId).val(res.geometry.lat);
-                      $("#" + lngId).val(res.geometry.lng);
-                      $results.addClass("hidden");
-                    });
-                  $results.append($item);
-                });
-              } else {
-                $results.addClass("hidden");
-              }
-            });
+                  .removeClass("hidden");
+              });
+          }, 300);
         } else {
           $results.addClass("hidden");
         }
       });
 
-      $(document).on("click", function (e) {
-        if (!$(e.target).closest(".group").length) {
+      // Handle selection - both click and touch for Android WebView
+      $results.on("click touchend", ".location-suggestion-item", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const lat = $(this).attr("data-lat");
+        const lng = $(this).attr("data-lng");
+        const name = $(this).attr("data-name");
+
+        if (lat && lng) {
+          $input.val(name);
+          $("#" + latId).val(lat);
+          $("#" + lngId).val(lng);
+          $results.addClass("hidden");
+
+          console.log(
+            "[ORBIS] Location selected:",
+            name,
+            "lat:",
+            lat,
+            "lng:",
+            lng
+          );
+
+          // Visual feedback - show checkmark
+          $input.css("border-color", "#22c55e");
+          setTimeout(() => $input.css("border-color", ""), 1500);
+        }
+      });
+
+      // Close on outside click/touch
+      $(document).on("click touchend", function (e) {
+        if (!$(e.target).closest("#" + inputId + ", #" + resultsId).length) {
           $results.addClass("hidden");
         }
       });
     }
+
+    // Debug: Show current form values
+    window.debugFormValues = function () {
+      console.log("[ORBIS DEBUG] Form values:");
+      console.log("  name:", document.getElementById("name").value);
+      console.log("  birth_date:", document.getElementById("birth_date").value);
+      console.log("  birth_time:", document.getElementById("birth_time").value);
+      console.log("  latitude:", document.getElementById("latitude").value);
+      console.log("  longitude:", document.getElementById("longitude").value);
+      console.log(
+        "  suggestionInput:",
+        document.getElementById("suggestionInput").value
+      );
+      alert(
+        "Lat: " +
+          document.getElementById("latitude").value +
+          "\nLng: " +
+          document.getElementById("longitude").value
+      );
+    };
   });
 </script>
 {% endblock %}
