@@ -6,14 +6,18 @@ Werkzeug==3.0.1
 
 # Astrology Calculations
 pyswisseph==2.10.3.2
-numpy
-pytz==2023.3
 
 # AI/ML & APIs
 openai>=1.50.0
 httpx>=0.27.0
+aiohttp>=3.9.0
 python-dotenv==1.0.0
 requests==2.31.0
+
+# Redis & Session
+redis>=5.0.0
+Flask-Session>=0.5.0
+
 
 # Firebase Admin SDK (Push Notifications)
 firebase-admin>=6.4.0

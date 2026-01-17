@@ -163,17 +163,8 @@ endblock %} {% block head %} {{ super() }}
             <span class="tracking-wide text-xs">Google ile Giriş Yap</span>
           </button>
 
-          <!-- Misafir olarak devam et -->
-          <button
-            onclick="continueAsGuest()"
-            class="w-full mt-2 bg-transparent hover:bg-white/5 text-slate-400 hover:text-white font-display py-3 px-6 rounded-xl border border-white/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest"
-          >
-            <span class="material-icons-round text-sm">person_outline</span>
-            Misafir Olarak Devam Et
-          </button>
-
           <p class="text-center text-[9px] text-slate-500 mt-2">
-            Google ile giriş yaparak verilerinizi senkronize edebilirsiniz
+            Analiz yapabilmek için Google ile giriş yapmanız gerekmektedir
           </p>
         </div>
 
@@ -405,6 +396,29 @@ endblock %} {% block head %} {{ super() }}
   </div>
 </div>
 
+<!-- AdSense Banner (Web Only) -->
+<div id="adsense-banner-index" class="web-ads-only max-w-md mx-auto px-4 mt-8">
+  <ins
+    class="adsbygoogle"
+    style="display: block"
+    data-ad-client="ca-pub-2444093901783574"
+    data-ad-slot="auto"
+    data-ad-format="auto"
+    data-full-width-responsive="true"
+  ></ins>
+  <script>
+    if (
+      !window.Capacitor ||
+      !window.Capacitor.isNativePlatform ||
+      !window.Capacitor.isNativePlatform()
+    ) {
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    } else {
+      document.getElementById("adsense-banner-index").style.display = "none";
+    }
+  </script>
+</div>
+
 <!-- Copyright Footer -->
 <footer class="mt-8 pb-6 text-center px-4">
   <!-- Sorumluluk Reddi -->
@@ -504,28 +518,15 @@ endblock %} {% block head %} {{ super() }}
 
       // Hata mesajı göster
       const errorMsg = error.message || error.code || "Bilinmeyen hata";
-      if (
-        confirm(
-          "Google girişi başarısız oldu.\n\n" +
-            errorMsg +
-            "\n\nMisafir olarak devam etmek ister misiniz?"
-        )
-      ) {
-        continueAsGuest();
-      }
+      alert(
+        "Google girişi başarısız oldu.\n\n" +
+          errorMsg +
+          "\n\nLütfen tekrar deneyin."
+      );
     }
   }
 
-  function continueAsGuest() {
-    // Misafir olarak devam et - anonim kullanıcı oluştur
-    console.log("[Auth] Misafir olarak devam ediliyor...");
-
-    // LocalStorage'a misafir flag'i kaydet
-    localStorage.setItem("orbis_guest_mode", "true");
-
-    // Dashboard'a yönlendir
-    window.location.href = "{{ url_for('main.dashboard') }}";
-  }
+  // Misafir modu kaldırıldı - Analiz için Google girişi zorunlu
 
   async function signOutUser() {
     if (window.OrbisFirebase) {

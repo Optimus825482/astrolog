@@ -45,17 +45,17 @@ const OrbisBridge = {
 
     // AdMob ID'leri (Production)
     ADMOB_PROD: {
-      APP_ID: "ca-app-pub-244409390178357~4683309361",
-      BANNER: "ca-app-pub-244409390178357/5860659669",
-      INTERSTITIAL: "ca-app-pub-244409390178357/8840184408",
-      REWARDED: "ca-app-pub-244409390178357/4900939398",
+      APP_ID: "ca-app-pub-2444093901783574~4683309361",
+      BANNER: "ca-app-pub-2444093901783574/5860659669",
+      INTERSTITIAL: "ca-app-pub-2444093901783574/8840184408",
+      REWARDED: "ca-app-pub-2444093901783574/4900939398",
     },
 
     // Interstitial gösterim aralığı (her X analizde bir)
     INTERSTITIAL_INTERVAL: 3,
 
-    // Test modu
-    IS_TESTING: true,
+    // Test modu - Production için false
+    IS_TESTING: false,
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -108,6 +108,56 @@ const OrbisBridge = {
     this.updateUI();
 
     console.log("[ORBIS] Durum:", this.getStatusSummary());
+
+    // GA: Uygulama başlatma event'i
+    this.trackEvent("app_start", {
+      platform: this.state.isNative ? "native" : "web",
+      is_premium: this.state.isPremium,
+      credits: this.state.credits,
+    });
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // GOOGLE ANALYTICS TRACKING
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Google Analytics Event Gönder
+   * @param {string} eventName - Event adı
+   * @param {object} params - Event parametreleri
+   */
+  trackEvent(eventName, params = {}) {
+    try {
+      if (typeof gtag === "function") {
+        gtag("event", eventName, {
+          ...params,
+          timestamp: new Date().toISOString(),
+          user_type: this.state.isPremium ? "premium" : "free",
+        });
+        console.log(`[GA] Event: ${eventName}`, params);
+      }
+    } catch (error) {
+      console.error("[GA] Event tracking error:", error);
+    }
+  },
+
+  /**
+   * Sayfa görüntüleme (SPA için)
+   * @param {string} pagePath - Sayfa yolu
+   * @param {string} pageTitle - Sayfa başlığı
+   */
+  trackPageView(pagePath, pageTitle) {
+    try {
+      if (typeof gtag === "function") {
+        gtag("event", "page_view", {
+          page_path: pagePath,
+          page_title: pageTitle,
+        });
+        console.log(`[GA] Page view: ${pagePath}`);
+      }
+    } catch (error) {
+      console.error("[GA] Page view tracking error:", error);
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -422,6 +472,13 @@ const OrbisBridge = {
     // Analiz yapılabilir mi kontrol et
     if (!this.canAnalyze()) {
       console.log("[ORBIS] Analiz yapılamaz - limit aşıldı");
+
+      // GA: Limit aşıldı event'i
+      this.trackEvent("analysis_limit_reached", {
+        today_usage: this.state.todayUsage,
+        daily_limit: this.getDailyLimit(),
+      });
+
       this.showLimitReachedModal();
       if (onCancel) {
         console.log("[ORBIS] Calling onCancel...");
@@ -437,6 +494,14 @@ const OrbisBridge = {
       this.state.totalAnalyses++;
       this.saveState();
       this.updateUI();
+
+      // GA: Premium analiz event'i
+      this.trackEvent("analysis_completed", {
+        analysis_type: "premium",
+        remaining_credits: this.state.credits,
+        total_analyses: this.state.totalAnalyses,
+      });
+
       console.log("[ORBIS] Premium analiz, kalan kredi:", this.state.credits);
       if (onSuccess) {
         console.log("[ORBIS] Calling onSuccess (premium)...");
@@ -461,6 +526,13 @@ const OrbisBridge = {
         // Her 3 analizde interstitial göster
         this.showInterstitialAd();
 
+        // GA: Reklamlı analiz event'i
+        this.trackEvent("analysis_completed", {
+          analysis_type: "with_ad",
+          ads_watched_today: this.state.todayAdsWatched,
+          total_analyses: this.state.totalAnalyses,
+        });
+
         console.log(
           "[ORBIS] Reklamlı analiz, bugünkü kullanım:",
           this.state.todayUsage
@@ -470,6 +542,11 @@ const OrbisBridge = {
           onSuccess();
         }
       } else {
+        // GA: Reklam izlenmedi event'i
+        this.trackEvent("ad_skipped", {
+          ad_type: "rewarded",
+        });
+
         console.log("[ORBIS] Reklam izlenmedi");
         if (onCancel) {
           console.log("[ORBIS] Calling onCancel (ad not watched)...");
@@ -482,6 +559,14 @@ const OrbisBridge = {
       this.state.totalAnalyses++;
       this.saveState();
       this.updateUI();
+
+      // GA: Ücretsiz analiz event'i
+      this.trackEvent("analysis_completed", {
+        analysis_type: "free_trial",
+        today_usage: this.state.todayUsage,
+        total_analyses: this.state.totalAnalyses,
+      });
+
       console.log(
         "[ORBIS] Ücretsiz analiz (hoşgeldin), bugünkü kullanım:",
         this.state.todayUsage
@@ -551,7 +636,21 @@ const OrbisBridge = {
         isTesting: this.CONFIG.IS_TESTING,
       });
 
-      document.body.style.paddingBottom = "60px";
+      // Banner için padding (banner 60px + bottom nav 80px = 140px)
+      document.body.style.paddingBottom = "140px";
+
+      // Bottom nav'ı yukarı kaydır
+      const bottomNav = document.querySelector("nav.fixed.bottom-0");
+      if (bottomNav) {
+        bottomNav.style.bottom = "60px";
+      }
+
+      // GA: Banner gösterildi event'i
+      this.trackEvent("ad_impression", {
+        ad_type: "banner",
+        ad_position: "bottom",
+      });
+
       console.log("[ORBIS] Banner gösterildi");
     } catch (error) {
       console.error("[ORBIS] Banner hatası:", error);
@@ -565,6 +664,12 @@ const OrbisBridge = {
       const { AdMob } = Capacitor.Plugins;
       await AdMob.hideBanner();
       document.body.style.paddingBottom = "0";
+
+      // Bottom nav'ı eski konumuna döndür
+      const bottomNav = document.querySelector("nav.fixed.bottom-0");
+      if (bottomNav) {
+        bottomNav.style.bottom = "0";
+      }
     } catch (error) {
       console.error("[ORBIS] Banner gizleme hatası:", error);
     }
@@ -602,6 +707,13 @@ const OrbisBridge = {
     try {
       const { AdMob } = Capacitor.Plugins;
       await AdMob.showInterstitial();
+
+      // GA: Interstitial gösterildi event'i
+      this.trackEvent("ad_impression", {
+        ad_type: "interstitial",
+        total_analyses: this.state.totalAnalyses,
+      });
+
       console.log("[ORBIS] Interstitial gösterildi");
 
       // Yeni interstitial yükle
@@ -668,6 +780,13 @@ const OrbisBridge = {
           "onRewardedVideoAdReward",
           () => {
             console.log("[ORBIS] Ödül kazanıldı!");
+
+            // GA: Rewarded ad izlendi event'i
+            this.trackEvent("ad_reward", {
+              ad_type: "rewarded",
+              reward_type: "analysis_credit",
+            });
+
             rewardListener.remove();
             resolve(true);
           }
@@ -680,6 +799,11 @@ const OrbisBridge = {
             setTimeout(() => resolve(false), 100);
           }
         );
+
+        // GA: Rewarded ad gösterildi event'i
+        this.trackEvent("ad_impression", {
+          ad_type: "rewarded",
+        });
 
         await AdMob.showRewardVideoAd();
 
@@ -747,6 +871,23 @@ const OrbisBridge = {
       this.hideBanner();
 
       this.updateUI();
+
+      // GA: Premium satın alma event'i
+      this.trackEvent("purchase", {
+        transaction_id: `premium_${Date.now()}`,
+        value: pkg.price,
+        currency: "TRY",
+        items: [
+          {
+            item_id: pkg.id,
+            item_name: `Premium ${pkg.name}`,
+            category: "subscription",
+            price: pkg.price,
+            quantity: 1,
+          },
+        ],
+      });
+
       alert(
         `🎉 Premium aktivasyonu başarılı!\n\n` +
           `📦 Paket: ${pkg.name}\n` +
@@ -781,6 +922,23 @@ const OrbisBridge = {
       this.state.credits += pkg.credits;
       this.saveState();
       this.updateUI();
+
+      // GA: Kredi satın alma event'i
+      this.trackEvent("purchase", {
+        transaction_id: `credits_${Date.now()}`,
+        value: pkg.price,
+        currency: "TRY",
+        items: [
+          {
+            item_id: `credits_${pkg.credits}`,
+            item_name: `${pkg.credits} Kredi Paketi`,
+            category: "credits",
+            price: pkg.price,
+            quantity: 1,
+          },
+        ],
+      });
+
       alert(
         `🎉 ${pkg.credits} kredi hesabınıza eklendi!\n\nToplam: ${this.state.credits} kredi`
       );

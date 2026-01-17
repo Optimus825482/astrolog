@@ -286,6 +286,15 @@ const OrbisFirebase = {
       console.log("[Firebase] Kullanıcı giriş yaptı:", user.email);
       this.loadUserData();
 
+      // GA: Login event
+      if (typeof gtag === "function") {
+        gtag("event", "login", {
+          method: "Google",
+          user_id: user.uid,
+        });
+        console.log("[GA] Login event sent");
+      }
+
       // Mobile app'e kullanıcı bilgisini gönder (reklam kontrolü için)
       if (
         window.OrbisApp &&
@@ -296,6 +305,12 @@ const OrbisFirebase = {
     } else {
       console.log("[Firebase] Kullanıcı çıkış yaptı");
       this.userDoc = null;
+
+      // GA: Logout event
+      if (typeof gtag === "function") {
+        gtag("event", "logout");
+        console.log("[GA] Logout event sent");
+      }
 
       // Mobile app'e çıkış bilgisini gönder
       if (
@@ -577,6 +592,78 @@ const OrbisFirebase = {
 
   getUserData() {
     return this.userDoc;
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // HESAP SİLME (GDPR/KVKK)
+  // ═══════════════════════════════════════════════════════════════
+
+  async deleteAccount() {
+    if (!this.user) {
+      throw new Error("Hesap silmek için giriş yapmalısınız.");
+    }
+
+    const userId = this.user.uid;
+    console.log("[Firebase] Hesap silme başlatılıyor:", userId);
+
+    try {
+      // 1. Firestore listener'ı kaldır
+      if (this.unsubscribe) {
+        this.unsubscribe();
+        this.unsubscribe = null;
+      }
+
+      // 2. Firestore'dan kullanıcı verisini sil
+      if (this.db) {
+        // Ana kullanıcı dokümanı
+        await this.db.collection("users").doc(userId).delete();
+        console.log("[Firebase] Kullanıcı verisi silindi");
+
+        // Satın alma geçmişi (varsa)
+        const purchasesSnapshot = await this.db
+          .collection("purchases")
+          .where("userId", "==", userId)
+          .get();
+
+        const batch = this.db.batch();
+        purchasesSnapshot.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+        console.log("[Firebase] Satın alma geçmişi silindi");
+      }
+
+      // 3. GA: Hesap silme event'i
+      if (typeof gtag === "function") {
+        gtag("event", "account_deleted", {
+          user_id: userId,
+        });
+      }
+
+      // 4. Local storage temizle
+      localStorage.removeItem("orbis_state");
+      localStorage.removeItem("orbis_user");
+      localStorage.removeItem("tts-speed");
+
+      // 5. State sıfırla
+      this.user = null;
+      this.userDoc = null;
+
+      // 6. Firebase Auth'dan çıkış yap
+      await this.auth.signOut();
+
+      console.log("[Firebase] Hesap başarıyla silindi");
+
+      // 7. OrbisBridge'i sıfırla
+      if (window.OrbisBridge) {
+        window.OrbisBridge.resetToLocal();
+      }
+
+      return { success: true, message: "Hesabınız başarıyla silindi." };
+    } catch (error) {
+      console.error("[Firebase] Hesap silme hatası:", error);
+      throw error;
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════

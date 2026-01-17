@@ -45,7 +45,7 @@ const OrbisAds = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ device_id: deviceId, email: email }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -55,7 +55,7 @@ const OrbisAds = {
         this.isPremium = data.usage?.is_premium === true;
 
         console.log(
-          `[AdMob] Ad status - showAds: ${this.showAds}, isAdmin: ${this.isAdmin}, isPremium: ${this.isPremium}`
+          `[AdMob] Ad status - showAds: ${this.showAds}, isAdmin: ${this.isAdmin}, isPremium: ${this.isPremium}`,
         );
 
         // Admin veya premium ise banner'ı gizle
@@ -178,9 +178,18 @@ const OrbisAds = {
 
       console.log("[AdMob] Banner shown");
 
-      // Banner için padding ekle
-      document.body.style.paddingBottom = position === "BOTTOM" ? "60px" : "0";
-      document.body.style.paddingTop = position === "TOP" ? "60px" : "0";
+      // Banner için padding ekle (banner 60px + bottom nav 80px = 140px)
+      // Bottom nav'ın banner ile örtüşmemesi için extra padding
+      if (position === "BOTTOM") {
+        document.body.style.paddingBottom = "140px";
+        // Bottom nav'ı da yukarı kaydır
+        const bottomNav = document.querySelector("nav.fixed.bottom-0");
+        if (bottomNav) {
+          bottomNav.style.bottom = "60px";
+        }
+      } else {
+        document.body.style.paddingTop = "60px";
+      }
     } catch (error) {
       console.error("[AdMob] Banner error:", error);
     }
@@ -197,6 +206,12 @@ const OrbisAds = {
       await AdMob.hideBanner();
       document.body.style.paddingBottom = "0";
       document.body.style.paddingTop = "0";
+
+      // Bottom nav'ı eski konumuna döndür
+      const bottomNav = document.querySelector("nav.fixed.bottom-0");
+      if (bottomNav) {
+        bottomNav.style.bottom = "0";
+      }
     } catch (error) {
       console.error("[AdMob] Hide banner error:", error);
     }
@@ -222,7 +237,7 @@ const OrbisAds = {
 
   /**
    * Interstitial reklam göster
-   * Her 3 işlemde bir gösterir
+   * AGRESIF MOD: Her işlemde göster (Premium'a teşvik için)
    */
   async showInterstitial(force = false) {
     // Admin veya premium kullanıcıya reklam gösterme
@@ -236,15 +251,12 @@ const OrbisAds = {
       return false;
     }
 
-    // Her 3 işlemde bir göster (force değilse)
+    // AGRESIF MOD: Her seferinde göster (force değilse bile)
     this.interstitialShowCount++;
-    if (!force && this.interstitialShowCount % 3 !== 0) {
-      console.log(
-        "[AdMob] Skipping interstitial, count:",
-        this.interstitialShowCount
-      );
-      return false;
-    }
+    console.log(
+      "[AdMob] Showing interstitial, count:",
+      this.interstitialShowCount,
+    );
 
     try {
       const { AdMob } = Capacitor.Plugins;
@@ -282,7 +294,7 @@ const OrbisAds = {
     // Admin veya premium kullanıcıya reklam gösterme - direkt ödül ver
     if (!this.showAds) {
       console.log(
-        "[AdMob] Ads disabled for this user (admin/premium) - granting reward"
+        "[AdMob] Ads disabled for this user (admin/premium) - granting reward",
       );
       return true; // Admin/premium için direkt ödül ver
     }
@@ -303,7 +315,7 @@ const OrbisAds = {
             console.log("[AdMob] Reward earned:", reward);
             rewardListener.remove();
             resolve(true);
-          }
+          },
         );
 
         // Kapatma event'ini dinle (ödül almadan)
@@ -313,7 +325,7 @@ const OrbisAds = {
             dismissListener.remove();
             // Eğer reward gelmemişse false döndür
             setTimeout(() => resolve(false), 100);
-          }
+          },
         );
 
         await AdMob.showRewardVideoAd();

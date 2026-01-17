@@ -157,6 +157,17 @@ const OrbisApp = {
    */
   onAnalysisComplete() {
     if (window.OrbisAds) {
+      // AGRESIF MOD: Her analiz sonrası reklam
+      window.OrbisAds.showInterstitial(true);
+    }
+  },
+
+  /**
+   * AI yorum açıldığında interstitial göster
+   */
+  onAICommentOpen() {
+    if (window.OrbisAds) {
+      // Her 2 yorumda 1 reklam göster
       window.OrbisAds.showInterstitial();
     }
   },

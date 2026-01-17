@@ -1,8 +1,10 @@
 """
-Kullanım Takip Sistemi
-- Günlük ücretsiz AI yorum limiti (analiz değil, yorum!)
-- Premium kullanıcı kontrolü
-- Admin kullanıcı muafiyeti
+Kullanım Takip Sistemi - YENİ STRATEJİ
+- Günlük 3 ücretsiz REKLAM İZLEME (analiz + yorum için)
+- Her analiz için rewarded ad izleme ZORUNLU
+- Her AI yorum için rewarded ad izleme ZORUNLU
+- 3 reklam sonrası Premium zorunlu
+- Premium Günlük: 30 TL (sınırsız analiz + yorum + reklamsız)
 - Supabase entegrasyonu (production)
 """
 from datetime import datetime, date, timedelta
@@ -17,9 +19,10 @@ ADMIN_EMAILS = os.environ.get('ADMIN_EMAILS', '').split(',')
 ADMIN_EMAILS = [email.strip().lower() for email in ADMIN_EMAILS if email.strip()]
 
 class UsageTracker:
-    """Kullanıcı kullanım takibi - Günlük AI yorum limiti"""
+    """Kullanıcı kullanım takibi - Günlük reklam izleme limiti"""
     
-    FREE_DAILY_LIMIT = 3  # Günlük ücretsiz AI YORUM sayısı (analiz değil!)
+    FREE_DAILY_LIMIT = 3  # Günlük ücretsiz REKLAM İZLEME sayısı
+    PREMIUM_DAILY_PRICE = 30.0  # TRY
     
     # In-memory storage (fallback)
     _memory_storage = {}
@@ -146,29 +149,45 @@ class UsageTracker:
             return datetime.fromisoformat(premium_until) > datetime.now()
         return False
     
-    def can_use_feature(self, device_id: str, feature: str = "interpretation", email: str = None) -> dict:
-        """Kullanıcı özelliği kullanabilir mi?"""
+    def can_use_feature(self, device_id: str, feature: str = "ad_watch", email: str = None) -> dict:
+        """
+        Kullanıcı özelliği kullanabilir mi?
+        feature: 'ad_watch' (analiz veya yorum için reklam izleme)
+        """
         usage = self.get_user_usage(device_id, email)
         
         # Admin her zaman kullanabilir
         if usage.get("is_admin"):
-            return {"allowed": True, "reason": "admin", "remaining": "unlimited", "show_ads": False}
+            return {"allowed": True, "reason": "admin", "remaining": "unlimited", "show_ads": False, "requires_ad": False}
         
         if usage["is_premium"]:
-            return {"allowed": True, "reason": "premium", "remaining": "unlimited", "show_ads": False}
+            return {"allowed": True, "reason": "premium", "remaining": "unlimited", "show_ads": False, "requires_ad": False}
         
+        # Ücretsiz kullanıcı - reklam izleme gerekli
         if usage["remaining"] > 0:
-            return {"allowed": True, "reason": "free_quota", "remaining": usage["remaining"], "show_ads": True}
+            return {
+                "allowed": True, 
+                "reason": "free_quota", 
+                "remaining": usage["remaining"], 
+                "show_ads": True,
+                "requires_ad": True,  # Reklam izleme ZORUNLU
+                "message": f"Reklam izleyerek devam edebilirsiniz. Bugün {usage['remaining']} hakkınız kaldı."
+            }
         
         return {
             "allowed": False, 
             "reason": "limit_reached",
-            "message": "Günlük ücretsiz kullanım limitiniz doldu. Premium'a geçin!",
+            "message": "Günlük 3 ücretsiz hakkınız doldu. Premium'a geçin!",
             "remaining": 0,
-            "show_ads": True
+            "show_ads": True,
+            "requires_ad": False,
+            "premium_price": self.PREMIUM_DAILY_PRICE
         }
-    def record_usage(self, device_id: str, feature: str = "interpretation", email: str = None) -> dict:
-        """Kullanımı kaydet"""
+    def record_usage(self, device_id: str, feature: str = "ad_watch", email: str = None) -> dict:
+        """
+        Kullanımı kaydet (reklam izleme)
+        feature: 'ad_watch' - analiz veya yorum için reklam izlendi
+        """
         today = date.today().isoformat()
         
         # Supabase'e yaz

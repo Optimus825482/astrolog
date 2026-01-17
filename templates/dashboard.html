@@ -240,6 +240,13 @@ endblock %} {% block head %} {{ super() }}
                 onchange="setTimeFromPicker('birth_time')"
               />
             </div>
+            <!-- Doğum saati bilinmiyorsa uyarı -->
+            <p
+              class="text-[9px] text-amber-400/80 mt-1.5 ml-1 flex items-center gap-1"
+            >
+              <span class="material-icons-round text-[10px]">info</span>
+              Saati bilmiyorsanız 12:00 girebilirsiniz
+            </p>
           </div>
         </div>
 
@@ -298,13 +305,14 @@ endblock %} {% block head %} {{ super() }}
           <div class="group relative">
             <label
               class="block text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-2 font-bold ml-1"
-              >Transit Tarihi</label
+              >Transit Tarihi <span class="text-red-400">*</span></label
             >
             <div class="relative">
               <input
                 type="text"
                 name="transit_date"
                 id="transit_date"
+                required
                 placeholder="GG/AA/YYYY"
                 inputmode="numeric"
                 maxlength="10"
@@ -328,13 +336,14 @@ endblock %} {% block head %} {{ super() }}
           <div class="group relative">
             <label
               class="block text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-2 font-bold ml-1"
-              >Transit Saati</label
+              >Transit Saati <span class="text-red-400">*</span></label
             >
             <div class="relative">
               <input
                 type="text"
                 name="transit_time"
                 id="transit_time"
+                required
                 placeholder="SS:DD"
                 inputmode="numeric"
                 maxlength="5"
@@ -360,7 +369,7 @@ endblock %} {% block head %} {{ super() }}
         <div class="group relative">
           <label
             class="block text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-2 font-bold ml-1"
-            >Transit Yeri</label
+            >Transit Yeri <span class="text-red-400">*</span></label
           >
           <div class="relative">
             <input
@@ -368,6 +377,7 @@ endblock %} {% block head %} {{ super() }}
               id="transit_location_search"
               name="transit_location_search"
               autocomplete="off"
+              required
               placeholder="Konum Ara..."
               class="w-full px-5 py-4 bg-white/5 border border-white/10 text-sm text-white focus:ring-1 focus:ring-accent/50 focus:border-accent/50 transition-all rounded-2xl outline-none hover:bg-white/10 pl-12"
             />
@@ -375,11 +385,27 @@ endblock %} {% block head %} {{ super() }}
               class="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-lg"
               >public</span
             >
+            <!-- Konum al butonu -->
+            <button
+              type="button"
+              id="getLocationBtn"
+              onclick="getCurrentLocation()"
+              class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-accent transition-colors"
+              title="Mevcut konumumu kullan"
+            >
+              <span class="material-icons-round text-xl">my_location</span>
+            </button>
             <div
               id="transit_location_suggestions"
               class="location-suggestions hidden"
             ></div>
           </div>
+          <p
+            class="text-[9px] text-slate-500 mt-1.5 ml-1 flex items-center gap-1"
+          >
+            <span class="material-icons-round text-[10px]">info</span>
+            Varsayılan: Bugünkü tarih/saat ve mevcut konumunuz
+          </p>
         </div>
       </div>
 
@@ -454,6 +480,35 @@ endblock %} {% block head %} {{ super() }}
   </div>
 </div>
 
+<!-- AdSense Banner (Web Only) -->
+<div
+  id="adsense-banner-container"
+  class="web-ads-only max-w-lg mx-auto px-4 mt-8"
+>
+  <ins
+    class="adsbygoogle"
+    style="display: block"
+    data-ad-client="ca-pub-2444093901783574"
+    data-ad-slot="auto"
+    data-ad-format="auto"
+    data-full-width-responsive="true"
+  ></ins>
+  <script>
+    // AdSense yalnızca web'de çalışır (Capacitor native değilse)
+    if (
+      !window.Capacitor ||
+      !window.Capacitor.isNativePlatform ||
+      !window.Capacitor.isNativePlatform()
+    ) {
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    } else {
+      // Native platformda gizle
+      document.getElementById("adsense-banner-container").style.display =
+        "none";
+    }
+  </script>
+</div>
+
 <!-- Copyright Footer -->
 <footer class="mt-8 pb-6 text-center px-4">
   <!-- Sorumluluk Reddi -->
@@ -495,6 +550,42 @@ endblock %} {% block head %} {{ super() }}
     "Yapay zeka verileri sentezliyor...",
     "Kaderin desenleri eşleştiriliyor...",
   ];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUTH CHECK - Google girişi zorunlu
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function checkAuthAndRedirect() {
+    // Firebase yüklenmesini bekle
+    if (!window.OrbisFirebase || !window.OrbisFirebase.auth) {
+      setTimeout(checkAuthAndRedirect, 500);
+      return;
+    }
+
+    window.OrbisFirebase.auth.onAuthStateChanged((user) => {
+      if (!user) {
+        // Giriş yapılmamış - index'e yönlendir
+        console.log("[ORBIS] Auth required - redirecting to login");
+        alert(
+          "⚠️ Analiz yapabilmek için Google ile giriş yapmanız gerekmektedir."
+        );
+        window.location.href = "{{ url_for('main.index') }}";
+      } else {
+        console.log("[ORBIS] User authenticated:", user.email);
+        // Form'u göster
+        document.getElementById("orbisForm").style.opacity = "1";
+      }
+    });
+  }
+
+  // Sayfa yüklendiğinde auth kontrolü yap
+  document.addEventListener("DOMContentLoaded", function () {
+    // Form'u başlangıçta gizle (auth kontrolü yapılana kadar)
+    document.getElementById("orbisForm").style.opacity = "0.3";
+
+    // Auth kontrolü başlat
+    checkAuthAndRedirect();
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DATE/TIME PICKER & AUTO-FORMAT FUNCTIONS
@@ -607,7 +698,179 @@ endblock %} {% block head %} {{ super() }}
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRANSIT DEFAULT VALUES & GEOLOCATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Bugünkü tarih ve saati al (GG/AA/YYYY ve SS:DD formatında)
+  function getTodayDate() {
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, "0");
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const year = now.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  function getCurrentTime() {
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }
+
+  // Mevcut konumu al ve transit alanlarına doldur
+  function getCurrentLocation() {
+    const btn = document.getElementById("getLocationBtn");
+    const originalIcon = btn.innerHTML;
+
+    // Loading state
+    btn.innerHTML =
+      '<span class="material-icons-round text-xl animate-spin">sync</span>';
+    btn.disabled = true;
+
+    if (!navigator.geolocation) {
+      alert("Tarayıcınız konum özelliğini desteklemiyor.");
+      btn.innerHTML = originalIcon;
+      btn.disabled = false;
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        console.log("[ORBIS] Geolocation success:", lat, lng);
+
+        // Koordinatları hidden input'lara yaz
+        document.getElementById("transit_latitude").value = lat;
+        document.getElementById("transit_longitude").value = lng;
+
+        // Reverse geocoding ile konum adını al
+        try {
+          const url = `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=${OPENCAGE_API_KEY}&language=tr&limit=1`;
+          const response = await fetch(url);
+          const data = await response.json();
+
+          if (data.results && data.results.length > 0) {
+            const locationName = data.results[0].formatted;
+            document.getElementById("transit_location_search").value =
+              locationName;
+
+            // Visual feedback
+            const input = document.getElementById("transit_location_search");
+            input.style.borderColor = "#22c55e";
+            setTimeout(() => (input.style.borderColor = ""), 2000);
+          }
+        } catch (err) {
+          console.error("[ORBIS] Reverse geocoding error:", err);
+          // Koordinatları göster
+          document.getElementById(
+            "transit_location_search"
+          ).value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+
+        btn.innerHTML =
+          '<span class="material-icons-round text-xl text-green-400">check</span>';
+        setTimeout(() => {
+          btn.innerHTML = originalIcon;
+          btn.disabled = false;
+        }, 2000);
+      },
+      (error) => {
+        console.error("[ORBIS] Geolocation error:", error);
+        let errorMsg = "Konum alınamadı.";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg =
+              "Konum izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMsg = "Konum bilgisi alınamıyor.";
+            break;
+          case error.TIMEOUT:
+            errorMsg = "Konum isteği zaman aşımına uğradı.";
+            break;
+        }
+        alert(errorMsg);
+        btn.innerHTML = originalIcon;
+        btn.disabled = false;
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000, // 5 dakika cache
+      }
+    );
+  }
+
+  // Transit default değerlerini ayarla
+  function setTransitDefaults() {
+    const transitDateEl = document.getElementById("transit_date");
+    const transitTimeEl = document.getElementById("transit_time");
+
+    // Eğer transit tarihi boşsa bugünü yaz
+    if (!transitDateEl.value) {
+      transitDateEl.value = getTodayDate();
+    }
+
+    // Eğer transit saati boşsa şu anki saati yaz
+    if (!transitTimeEl.value) {
+      transitTimeEl.value = getCurrentTime();
+    }
+
+    // Konum izni varsa otomatik al
+    if (
+      navigator.geolocation &&
+      !document.getElementById("transit_latitude").value
+    ) {
+      // Sessizce konum almayı dene
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          document.getElementById("transit_latitude").value = lat;
+          document.getElementById("transit_longitude").value = lng;
+
+          // Reverse geocoding
+          try {
+            const url = `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=${OPENCAGE_API_KEY}&language=tr&limit=1`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.results && data.results.length > 0) {
+              const locationName = data.results[0].formatted;
+              const transitInput = document.getElementById(
+                "transit_location_search"
+              );
+              if (!transitInput.value) {
+                transitInput.value = locationName;
+                console.log(
+                  "[ORBIS] Auto-filled transit location:",
+                  locationName
+                );
+              }
+            }
+          } catch (err) {
+            console.error("[ORBIS] Auto reverse geocoding error:", err);
+          }
+        },
+        (error) => {
+          console.log("[ORBIS] Auto geolocation skipped:", error.message);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 }
+      );
+    }
+  }
+
+  // Global scope'a ekle
+  window.getCurrentLocation = getCurrentLocation;
+
   document.addEventListener("DOMContentLoaded", function () {
+    // Transit default değerlerini ayarla
+    setTransitDefaults();
+
     // Auto-format event listeners
     ["birth_date", "transit_date"].forEach((id) => {
       const el = document.getElementById(id);
@@ -719,6 +982,65 @@ endblock %} {% block head %} {{ super() }}
       // Transit date conversion
       const transitDateEl = document.getElementById("transit_date");
       const transitDateDisplay = transitDateEl.value;
+
+      // Transit validasyonu - ZORUNLU
+      if (!transitDateDisplay || transitDateDisplay.length !== 10) {
+        alert(
+          "⚠️ Transit tarihi zorunludur!\n\nLütfen transit tarihini GG/AA/YYYY formatında girin."
+        );
+        transitDateEl.style.borderColor = "#ef4444";
+        transitDateEl.focus();
+        setTimeout(() => (transitDateEl.style.borderColor = ""), 3000);
+        return;
+      }
+
+      if (!isValidDate(transitDateDisplay)) {
+        alert(
+          "Geçersiz transit tarihi!\n\nFormat: GG/AA/YYYY\nÖrnek: 16/01/2026"
+        );
+        transitDateEl.style.borderColor = "#ef4444";
+        transitDateEl.focus();
+        setTimeout(() => (transitDateEl.style.borderColor = ""), 3000);
+        return;
+      }
+
+      const transitTimeEl = document.getElementById("transit_time");
+      const transitTimeValue = transitTimeEl.value;
+
+      if (!transitTimeValue || transitTimeValue.length < 4) {
+        alert(
+          "⚠️ Transit saati zorunludur!\n\nLütfen transit saatini SS:DD formatında girin."
+        );
+        transitTimeEl.style.borderColor = "#ef4444";
+        transitTimeEl.focus();
+        setTimeout(() => (transitTimeEl.style.borderColor = ""), 3000);
+        return;
+      }
+
+      // Transit konum validasyonu
+      const transitLatitude = document.getElementById("transit_latitude").value;
+      const transitLongitude =
+        document.getElementById("transit_longitude").value;
+      const transitLocationInput = document.getElementById(
+        "transit_location_search"
+      );
+
+      if (!transitLatitude || !transitLongitude) {
+        transitLocationInput.style.borderColor = "#ef4444";
+        transitLocationInput.style.boxShadow =
+          "0 0 0 2px rgba(239, 68, 68, 0.3)";
+        transitLocationInput.focus();
+
+        alert(
+          "⚠️ Transit yeri zorunludur!\n\nŞehir adını yazın ve listeden seçin veya 📍 butonuna tıklayarak mevcut konumunuzu kullanın."
+        );
+
+        setTimeout(() => {
+          transitLocationInput.style.borderColor = "";
+          transitLocationInput.style.boxShadow = "";
+        }, 3000);
+        return;
+      }
 
       // Reklam kontrolü yap
       if (window.OrbisBridge) {
