@@ -2420,8 +2420,8 @@ super() }}
             if (result.usage && !result.usage.is_premium && result.usage.remaining !== 'unlimited') {
                 const remaining = result.usage.remaining;
                 const badge = remaining > 0 
-                    ? `<span class="text-emerald-400">${remaining} yorum kaldı</span>`
-                    : `<span class="text-amber-400">Son yorumunuz!</span>`;
+                    ? `<span class="text-emerald-400">${remaining} hak kaldı</span>`
+                    : `<span class="text-amber-400">Son hakkınız!</span>`;
                 $body.prepend(`<div class="text-[10px] text-center mb-4 py-2 px-3 bg-white/5 rounded-lg">${badge}</div>`);
             }
         } else {
