@@ -567,7 +567,7 @@ endblock %} {% block head %} {{ super() }}
         // Giriş yapılmamış - index'e yönlendir
         console.log("[ORBIS] Auth required - redirecting to login");
         alert(
-          "⚠️ Analiz yapabilmek için Google ile giriş yapmanız gerekmektedir."
+          "⚠️ Analiz yapabilmek için Google ile giriş yapmanız gerekmektedir.",
         );
         window.location.href = "{{ url_for('main.index') }}";
       } else {
@@ -765,9 +765,8 @@ endblock %} {% block head %} {{ super() }}
         } catch (err) {
           console.error("[ORBIS] Reverse geocoding error:", err);
           // Koordinatları göster
-          document.getElementById(
-            "transit_location_search"
-          ).value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          document.getElementById("transit_location_search").value =
+            `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
         }
 
         btn.innerHTML =
@@ -800,7 +799,7 @@ endblock %} {% block head %} {{ super() }}
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 300000, // 5 dakika cache
-      }
+      },
     );
   }
 
@@ -842,13 +841,13 @@ endblock %} {% block head %} {{ super() }}
             if (data.results && data.results.length > 0) {
               const locationName = data.results[0].formatted;
               const transitInput = document.getElementById(
-                "transit_location_search"
+                "transit_location_search",
               );
               if (!transitInput.value) {
                 transitInput.value = locationName;
                 console.log(
                   "[ORBIS] Auto-filled transit location:",
-                  locationName
+                  locationName,
                 );
               }
             }
@@ -859,7 +858,7 @@ endblock %} {% block head %} {{ super() }}
         (error) => {
           console.log("[ORBIS] Auto geolocation skipped:", error.message);
         },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 }
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 },
       );
     }
   }
@@ -929,7 +928,7 @@ endblock %} {% block head %} {{ super() }}
         locationInput.focus();
 
         alert(
-          "⚠️ Doğum yeri seçilmedi!\n\nŞehir adını yazın ve açılan listeden bir seçenek seçin."
+          "⚠️ Doğum yeri seçilmedi!\n\nŞehir adını yazın ve açılan listeden bir seçenek seçin.",
         );
 
         setTimeout(() => {
@@ -945,7 +944,7 @@ endblock %} {% block head %} {{ super() }}
 
       if (!birthDateDisplay || birthDateDisplay.length !== 10) {
         alert(
-          "Lütfen doğum tarihini GG/AA/YYYY formatında girin!\nÖrnek: 19/06/1982"
+          "Lütfen doğum tarihini GG/AA/YYYY formatında girin!\nÖrnek: 19/06/1982",
         );
         birthDateEl.focus();
         return;
@@ -954,7 +953,7 @@ endblock %} {% block head %} {{ super() }}
       // Validate date
       if (!isValidDate(birthDateDisplay)) {
         alert(
-          "Geçersiz tarih!\n\nFormat: GG/AA/YYYY\nÖrnek: 19/06/1982\n\nGün: 01-31\nAy: 01-12\nYıl: 1900-2100"
+          "Geçersiz tarih!\n\nFormat: GG/AA/YYYY\nÖrnek: 19/06/1982\n\nGün: 01-31\nAy: 01-12\nYıl: 1900-2100",
         );
         birthDateEl.style.borderColor = "#ef4444";
         birthDateEl.focus();
@@ -966,7 +965,7 @@ endblock %} {% block head %} {{ super() }}
       const convertedDate = convertDateForBackend(birthDateDisplay);
       if (!convertedDate) {
         alert(
-          "Tarih dönüştürme hatası! GG/AA/YYYY formatında girin.\nÖrnek: 19/06/1982"
+          "Tarih dönüştürme hatası! GG/AA/YYYY formatında girin.\nÖrnek: 19/06/1982",
         );
         return;
       }
@@ -975,7 +974,7 @@ endblock %} {% block head %} {{ super() }}
         "[ORBIS] Form submit - birthDate:",
         birthDateDisplay,
         "-> converted:",
-        convertedDate
+        convertedDate,
       );
       console.log("[ORBIS] Latitude:", latitude, "Longitude:", longitude);
 
@@ -986,7 +985,7 @@ endblock %} {% block head %} {{ super() }}
       // Transit validasyonu - ZORUNLU
       if (!transitDateDisplay || transitDateDisplay.length !== 10) {
         alert(
-          "⚠️ Transit tarihi zorunludur!\n\nLütfen transit tarihini GG/AA/YYYY formatında girin."
+          "⚠️ Transit tarihi zorunludur!\n\nLütfen transit tarihini GG/AA/YYYY formatında girin.",
         );
         transitDateEl.style.borderColor = "#ef4444";
         transitDateEl.focus();
@@ -996,7 +995,7 @@ endblock %} {% block head %} {{ super() }}
 
       if (!isValidDate(transitDateDisplay)) {
         alert(
-          "Geçersiz transit tarihi!\n\nFormat: GG/AA/YYYY\nÖrnek: 16/01/2026"
+          "Geçersiz transit tarihi!\n\nFormat: GG/AA/YYYY\nÖrnek: 16/01/2026",
         );
         transitDateEl.style.borderColor = "#ef4444";
         transitDateEl.focus();
@@ -1009,7 +1008,7 @@ endblock %} {% block head %} {{ super() }}
 
       if (!transitTimeValue || transitTimeValue.length < 4) {
         alert(
-          "⚠️ Transit saati zorunludur!\n\nLütfen transit saatini SS:DD formatında girin."
+          "⚠️ Transit saati zorunludur!\n\nLütfen transit saatini SS:DD formatında girin.",
         );
         transitTimeEl.style.borderColor = "#ef4444";
         transitTimeEl.focus();
@@ -1022,7 +1021,7 @@ endblock %} {% block head %} {{ super() }}
       const transitLongitude =
         document.getElementById("transit_longitude").value;
       const transitLocationInput = document.getElementById(
-        "transit_location_search"
+        "transit_location_search",
       );
 
       if (!transitLatitude || !transitLongitude) {
@@ -1032,7 +1031,7 @@ endblock %} {% block head %} {{ super() }}
         transitLocationInput.focus();
 
         alert(
-          "⚠️ Transit yeri zorunludur!\n\nŞehir adını yazın ve listeden seçin veya 📍 butonuna tıklayarak mevcut konumunuzu kullanın."
+          "⚠️ Transit yeri zorunludur!\n\nŞehir adını yazın ve listeden seçin veya 📍 butonuna tıklayarak mevcut konumunuzu kullanın.",
         );
 
         setTimeout(() => {
@@ -1076,10 +1075,10 @@ endblock %} {% block head %} {{ super() }}
       }
     });
 
-    function submitForm(
+    async function submitForm(
       birthDateDisplay,
       transitDateDisplay,
-      convertedBirthDate
+      convertedBirthDate,
     ) {
       try {
         console.log("[ORBIS] submitForm called with:", {
@@ -1087,6 +1086,56 @@ endblock %} {% block head %} {{ super() }}
           transitDateDisplay,
           convertedBirthDate,
         });
+
+        // 🎯 REKLAM İZLEME KONTROLÜ - YENİ STRATEJİ
+        const deviceId =
+          localStorage.getItem("orbis_device_id") || "web_" + Date.now();
+        const userEmail = window.OrbisFirebase?.getCurrentUser()?.email || null;
+
+        // Kullanım kontrolü
+        const usageResponse = await fetch("/api/check_usage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ device_id: deviceId, email: userEmail }),
+        });
+        const usage = await usageResponse.json();
+
+        console.log("[ORBIS] Usage check:", usage);
+
+        // Limit doldu mu?
+        if (!usage.allowed) {
+          alert("Günlük 3 ücretsiz hakkınız doldu! Premium'a geçin.");
+          if (typeof showPremiumModal === "function") {
+            showPremiumModal();
+          }
+          return;
+        }
+
+        // Reklam izleme gerekli mi?
+        if (usage.requires_ad) {
+          console.log("[ORBIS] Rewarded ad required for analysis");
+
+          // Rewarded ad göster
+          if (window.OrbisRewardedAds) {
+            const rewarded = await window.OrbisRewardedAds.showForAnalysis();
+
+            if (!rewarded) {
+              alert("Analiz yapmak için reklam izlemeniz gerekiyor!");
+              return;
+            }
+
+            // Reklam izlendi, kullanımı kaydet
+            await fetch("/api/record_ad_watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ device_id: deviceId, email: userEmail }),
+            });
+
+            console.log("[ORBIS] Ad watched, usage recorded");
+          } else {
+            console.warn("[ORBIS] OrbisRewardedAds not available");
+          }
+        }
 
         $("#loadingOverlay").removeClass("hidden").addClass("flex");
         let msgIdx = 0;
@@ -1147,13 +1196,13 @@ endblock %} {% block head %} {{ super() }}
       "suggestionInput",
       "suggestionResults",
       "latitude",
-      "longitude"
+      "longitude",
     );
     setupLocationSearch(
       "transit_location_search",
       "transit_location_suggestions",
       "transit_latitude",
-      "transit_longitude"
+      "transit_longitude",
     );
 
     function setupLocationSearch(inputId, resultsId, latId, lngId) {
@@ -1171,7 +1220,7 @@ endblock %} {% block head %} {{ super() }}
           searchTimeout = setTimeout(() => {
             console.log("[ORBIS] Location search:", query);
             const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-              query
+              query,
             )}&key=${OPENCAGE_API_KEY}&limit=5&language=tr`;
 
             fetch(url)
@@ -1180,13 +1229,13 @@ endblock %} {% block head %} {{ super() }}
                 $results.empty().removeClass("hidden");
                 console.log(
                   "[ORBIS] Location results:",
-                  data.results?.length || 0
+                  data.results?.length || 0,
                 );
 
                 if (data.results && data.results.length > 0) {
                   data.results.forEach((res) => {
                     const $item = $(
-                      '<div class="location-suggestion-item"></div>'
+                      '<div class="location-suggestion-item"></div>',
                     )
                       .text(res.formatted)
                       .attr("data-lat", res.geometry.lat)
@@ -1196,7 +1245,7 @@ endblock %} {% block head %} {{ super() }}
                   });
                 } else {
                   $results.html(
-                    '<div class="location-suggestion-item text-slate-500">Sonuç bulunamadı</div>'
+                    '<div class="location-suggestion-item text-slate-500">Sonuç bulunamadı</div>',
                   );
                 }
               })
@@ -1204,7 +1253,7 @@ endblock %} {% block head %} {{ super() }}
                 console.error("[ORBIS] Location search error:", err);
                 $results
                   .html(
-                    '<div class="location-suggestion-item text-red-400">Arama hatası</div>'
+                    '<div class="location-suggestion-item text-red-400">Arama hatası</div>',
                   )
                   .removeClass("hidden");
               });
@@ -1235,7 +1284,7 @@ endblock %} {% block head %} {{ super() }}
             "lat:",
             lat,
             "lng:",
-            lng
+            lng,
           );
 
           // Visual feedback - show checkmark
@@ -1262,13 +1311,13 @@ endblock %} {% block head %} {{ super() }}
       console.log("  longitude:", document.getElementById("longitude").value);
       console.log(
         "  suggestionInput:",
-        document.getElementById("suggestionInput").value
+        document.getElementById("suggestionInput").value,
       );
       alert(
         "Lat: " +
           document.getElementById("latitude").value +
           "\nLng: " +
-          document.getElementById("longitude").value
+          document.getElementById("longitude").value,
       );
     };
   });

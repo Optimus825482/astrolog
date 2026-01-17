@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr" class="dark">
   <head>
     <meta charset="UTF-8" />
@@ -124,7 +124,8 @@
       }
       .bg-grid-pattern {
         background-size: 40px 40px;
-        background-image: linear-gradient(
+        background-image:
+          linear-gradient(
             to right,
             rgba(148, 163, 184, 0.1) 1px,
             transparent 1px
@@ -136,7 +137,8 @@
           );
       }
       .thin-lines {
-        background-image: linear-gradient(
+        background-image:
+          linear-gradient(
             to right,
             rgba(255, 255, 255, 0.03) 1px,
             transparent 1px
@@ -165,7 +167,8 @@
         padding-bottom: env(safe-area-inset-bottom, 20px);
       }
       .geometric-overlay {
-        background-image: radial-gradient(
+        background-image:
+          radial-gradient(
             circle at center,
             transparent 0%,
             transparent 60%,
@@ -173,7 +176,10 @@
           ),
           linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
           linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        background-size: 100% 100%, 60px 60px, 60px 60px;
+        background-size:
+          100% 100%,
+          60px 60px,
+          60px 60px;
       }
       .mask-image-gradient {
         -webkit-mask-image: linear-gradient(
@@ -471,7 +477,10 @@
             </div>
 
             <button
-              onclick="OrbisFirebase.signInWithGoogle(); closeMobileAuth();"
+              onclick="
+                OrbisFirebase.signInWithGoogle();
+                closeMobileAuth();
+              "
               class="w-full flex items-center justify-center gap-3 bg-white text-slate-900 py-3 px-4 rounded-xl font-semibold hover:bg-slate-100 transition-colors"
             >
               <svg class="w-5 h-5" viewBox="0 0 24 24">
@@ -526,7 +535,10 @@
             </div>
 
             <button
-              onclick="OrbisFirebase.signOut(); closeMobileAuth();"
+              onclick="
+                OrbisFirebase.signOut();
+                closeMobileAuth();
+              "
               class="w-full flex items-center justify-center gap-2 bg-red-500/20 text-red-400 py-3 px-4 rounded-xl font-semibold hover:bg-red-500/30 transition-colors"
             >
               <span class="material-icons-round text-lg">logout</span>
@@ -665,7 +677,7 @@
         window.navigator.standalone;
       const isDismissed = localStorage.getItem("pwa-install-dismissed");
       const dismissedTime = parseInt(
-        localStorage.getItem("pwa-install-dismissed-time") || "0"
+        localStorage.getItem("pwa-install-dismissed-time") || "0",
       );
       const oneWeek = 7 * 24 * 60 * 60 * 1000;
 
@@ -677,7 +689,7 @@
       const isIOS =
         /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       const isSafari = /^((?!chrome|android).)*safari/i.test(
-        navigator.userAgent
+        navigator.userAgent,
       );
 
       // For Chrome/Edge/Android - beforeinstallprompt event
@@ -749,7 +761,7 @@
           localStorage.setItem("pwa-install-dismissed", "true");
           localStorage.setItem(
             "pwa-install-dismissed-time",
-            Date.now().toString()
+            Date.now().toString(),
           );
         });
       }
@@ -761,7 +773,7 @@
           localStorage.setItem("pwa-install-dismissed", "true");
           localStorage.setItem(
             "pwa-install-dismissed-time",
-            Date.now().toString()
+            Date.now().toString(),
           );
         });
       }
@@ -786,11 +798,14 @@
           {
             opacity: 1,
           },
-          1200
+          1200,
         );
       });
     </script>
 
     {% block scripts %}{% endblock %}
+
+    <!-- Premium Onboarding Modal -->
+    {% include 'components/premium_onboarding_modal.html' %}
   </body>
 </html>

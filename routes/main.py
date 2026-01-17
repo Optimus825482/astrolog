@@ -348,3 +348,89 @@ def account_delete_page():
     """Hesap silme sayfası"""
     return render_template("account_delete.html")
 
+
+# ═══════════════════════════════════════════════════════════════
+# REWARDED ADS & USAGE TRACKING API
+# ═══════════════════════════════════════════════════════════════
+
+@bp.route("/api/check_usage", methods=["POST"])
+def api_check_usage():
+    """
+    Kullanıcının günlük reklam izleme hakkını kontrol et
+    
+    Request:
+    {
+        "device_id": "device_xxx",
+        "email": "user@example.com"  # optional
+    }
+    
+    Response:
+    {
+        "allowed": true/false,
+        "requires_ad": true/false,
+        "remaining": 2,
+        "premium_price": 30.0,
+        "message": "..."
+    }
+    """
+    try:
+        from monetization.usage_tracker import UsageTracker
+        
+        data = request.get_json()
+        device_id = data.get('device_id')
+        email = data.get('email')
+        
+        if not device_id:
+            return jsonify({"error": "device_id required"}), 400
+        
+        tracker = UsageTracker()
+        usage = tracker.can_use_feature(device_id, 'ad_watch', email)
+        
+        return jsonify(usage)
+        
+    except Exception as e:
+        logger.error(f"[API] check_usage error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/api/record_ad_watch", methods=["POST"])
+def api_record_ad_watch():
+    """
+    Reklam izleme kaydını tut
+    
+    Request:
+    {
+        "device_id": "device_xxx",
+        "email": "user@example.com"  # optional
+    }
+    
+    Response:
+    {
+        "success": true,
+        "remaining": 1,
+        "today_usage": 2
+    }
+    """
+    try:
+        from monetization.usage_tracker import UsageTracker
+        
+        data = request.get_json()
+        device_id = data.get('device_id')
+        email = data.get('email')
+        
+        if not device_id:
+            return jsonify({"error": "device_id required"}), 400
+        
+        tracker = UsageTracker()
+        result = tracker.record_usage(device_id, 'ad_watch', email)
+        
+        return jsonify({
+            "success": True,
+            "remaining": result.get('remaining'),
+            "today_usage": result.get('today_usage')
+        })
+        
+    except Exception as e:
+        logger.error(f"[API] record_ad_watch error: {e}")
+        return jsonify({"error": str(e)}), 500
+

@@ -2297,9 +2297,78 @@ super() }}
 
         openAIModal();
 
-        // 🎯 REKLAM GÖSTER - AI yorum açılışında (her 2 yorumda 1)
-        if (window.OrbisApp && typeof window.OrbisApp.onAICommentOpen === 'function') {
-            window.OrbisApp.onAICommentOpen();
+        // 🎯 REKLAM İZLEME KONTROLÜ - YENİ STRATEJİ
+        const deviceId = localStorage.getItem('orbis_device_id') || 'web_' + Date.now();
+        const userEmail = window.OrbisFirebase?.getCurrentUser()?.email || null;
+        
+        // Kullanım kontrolü
+        const usageResponse = await fetch('/api/check_usage', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({device_id: deviceId, email: userEmail})
+        });
+        const usage = await usageResponse.json();
+        
+        console.log("[ORBIS] AI Comment usage check:", usage);
+        
+        // Limit doldu mu?
+        if (!usage.allowed) {
+          $body.html(`
+            <div class="flex flex-col items-center justify-center py-8 px-4 text-center">
+                <div class="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center mb-6">
+                    <span class="material-icons-round text-4xl text-amber-400">lock</span>
+                </div>
+                <h3 class="text-white font-bold text-lg mb-3">Günlük Limit Doldu</h3>
+                <p class="text-slate-400 text-sm mb-6 max-w-xs">
+                    Bugünkü 3 ücretsiz hakkınızı kullandınız. 
+                    Premium'a geçerek sınırsız yorum alabilirsiniz!
+                </p>
+                <button onclick="showPremiumModal()" class="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 active:scale-95 transition-all">
+                    💎 Premium'a Geç - 30 TL
+                </button>
+                <p class="text-[10px] text-slate-500 mt-4">Yarın saat 00:00'da limitiniz yenilenir</p>
+            </div>
+          `);
+          return;
+        }
+        
+        // Reklam izleme gerekli mi?
+        if (usage.requires_ad) {
+          console.log("[ORBIS] Rewarded ad required for AI comment");
+          
+          // Rewarded ad göster
+          if (window.OrbisRewardedAds) {
+            const rewarded = await window.OrbisRewardedAds.showForInterpretation();
+            
+            if (!rewarded) {
+              $body.html(`
+                <div class="flex flex-col items-center justify-center py-8 px-4 text-center">
+                    <div class="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
+                        <span class="material-icons-round text-4xl text-red-400">error</span>
+                    </div>
+                    <h3 class="text-white font-bold text-lg mb-3">Reklam İzleme Gerekli</h3>
+                    <p class="text-slate-400 text-sm mb-6 max-w-xs">
+                        AI yorum okumak için reklam izlemeniz gerekiyor!
+                    </p>
+                    <button onclick="closeAIModal()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-all">
+                        Tamam
+                    </button>
+                </div>
+              `);
+              return;
+            }
+            
+            // Reklam izlendi, kullanımı kaydet
+            await fetch('/api/record_ad_watch', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({device_id: deviceId, email: userEmail})
+            });
+            
+            console.log("[ORBIS] Ad watched for AI comment, usage recorded");
+          } else {
+            console.warn("[ORBIS] OrbisRewardedAds not available");
+          }
         }
 
         try {
