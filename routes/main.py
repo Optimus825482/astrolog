@@ -380,16 +380,21 @@ def api_check_usage():
         device_id = data.get('device_id')
         email = data.get('email')
         
+        logger.info(f"[API] check_usage - device_id: {device_id}, email: {email}")
+        
         if not device_id:
+            logger.error("[API] check_usage - device_id missing")
             return jsonify({"error": "device_id required"}), 400
         
         tracker = UsageTracker()
         usage = tracker.can_use_feature(device_id, 'ad_watch', email)
         
+        logger.info(f"[API] check_usage result: {usage}")
+        
         return jsonify(usage)
         
     except Exception as e:
-        logger.error(f"[API] check_usage error: {e}")
+        logger.error(f"[API] check_usage error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -418,11 +423,16 @@ def api_record_ad_watch():
         device_id = data.get('device_id')
         email = data.get('email')
         
+        logger.info(f"[API] record_ad_watch - device_id: {device_id}, email: {email}")
+        
         if not device_id:
+            logger.error("[API] record_ad_watch - device_id missing")
             return jsonify({"error": "device_id required"}), 400
         
         tracker = UsageTracker()
         result = tracker.record_usage(device_id, 'ad_watch', email)
+        
+        logger.info(f"[API] record_ad_watch result: {result}")
         
         return jsonify({
             "success": True,
@@ -431,6 +441,6 @@ def api_record_ad_watch():
         })
         
     except Exception as e:
-        logger.error(f"[API] record_ad_watch error: {e}")
+        logger.error(f"[API] record_ad_watch error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 

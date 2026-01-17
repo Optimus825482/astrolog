@@ -2298,8 +2298,15 @@ super() }}
         openAIModal();
 
         // 🎯 REKLAM İZLEME KONTROLÜ - YENİ STRATEJİ
-        const deviceId = localStorage.getItem('orbis_device_id') || 'web_' + Date.now();
+        let deviceId = localStorage.getItem('orbis_device_id');
+        if (!deviceId) {
+          deviceId = 'web_' + Date.now();
+          localStorage.setItem('orbis_device_id', deviceId);
+        }
         const userEmail = window.OrbisFirebase?.getCurrentUser()?.email || null;
+        
+        console.log("[ORBIS] 🔍 AI Comment - Device ID:", deviceId);
+        console.log("[ORBIS] 🔍 AI Comment - Email:", userEmail);
         
         // Kullanım kontrolü
         const usageResponse = await fetch('/api/check_usage', {
@@ -2309,7 +2316,10 @@ super() }}
         });
         const usage = await usageResponse.json();
         
-        console.log("[ORBIS] AI Comment usage check:", usage);
+        console.log("[ORBIS] ✅ AI Comment usage check:", usage);
+        console.log("[ORBIS] 📊 Remaining:", usage.remaining);
+        console.log("[ORBIS] 🎬 Requires ad:", usage.requires_ad);
+        console.log("[ORBIS] 💎 Is premium:", usage.is_premium);
         
         // Limit doldu mu?
         if (!usage.allowed) {
@@ -2334,11 +2344,18 @@ super() }}
         
         // Reklam izleme gerekli mi?
         if (usage.requires_ad) {
-          console.log("[ORBIS] Rewarded ad required for AI comment");
+          console.log("[ORBIS] 🎬 Rewarded ad required for AI comment, remaining:", usage.remaining);
+          
+          // OrbisRewardedAds kontrolü
+          console.log("[ORBIS] 🔍 Checking OrbisRewardedAds...");
+          console.log("[ORBIS] 🔍 window.OrbisRewardedAds:", window.OrbisRewardedAds);
+          console.log("[ORBIS] 🔍 typeof showForInterpretation:", typeof window.OrbisRewardedAds?.showForInterpretation);
           
           // Rewarded ad göster
-          if (window.OrbisRewardedAds) {
+          if (window.OrbisRewardedAds && typeof window.OrbisRewardedAds.showForInterpretation === 'function') {
+            console.log("[ORBIS] ✅ Showing rewarded ad...");
             const rewarded = await window.OrbisRewardedAds.showForInterpretation();
+            console.log("[ORBIS] 🎁 Rewarded ad result:", rewarded);
             
             if (!rewarded) {
               $body.html(`
@@ -2359,15 +2376,22 @@ super() }}
             }
             
             // Reklam izlendi, kullanımı kaydet
-            await fetch('/api/record_ad_watch', {
+            console.log("[ORBIS] 📝 Recording ad watch...");
+            const recordResponse = await fetch('/api/record_ad_watch', {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({device_id: deviceId, email: userEmail})
             });
+            const recordResult = await recordResponse.json();
             
-            console.log("[ORBIS] Ad watched for AI comment, usage recorded");
+            console.log("[ORBIS] ✅ Ad watched for AI comment, usage recorded:", recordResult);
+            console.log("[ORBIS] 📊 New remaining:", recordResult.remaining);
           } else {
-            console.warn("[ORBIS] OrbisRewardedAds not available");
+            console.error("[ORBIS] ❌ OrbisRewardedAds not available or not initialized!");
+            console.log("[ORBIS] 🔍 window.OrbisRewardedAds:", window.OrbisRewardedAds);
+            console.log("[ORBIS] 🔍 Is mobile app:", typeof AdMob !== 'undefined');
+            // Fallback: Web'de rewarded ad yok, devam et
+            console.log("[ORBIS] ⚠️ Fallback: Continuing without ad (web environment)");
           }
         }
 
@@ -2416,15 +2440,21 @@ super() }}
             // Yorum yüklenince footer'ı göster
             $('#ai-modal-footer').removeClass('hidden');
             
+            console.log("[ORBIS] 📊 Result usage:", result.usage);
+            
             // Kalan yorum sayısını göster (premium değilse)
             if (result.usage && !result.usage.is_premium && result.usage.remaining !== 'unlimited') {
                 const remaining = result.usage.remaining;
+                console.log("[ORBIS] 📊 Displaying remaining:", remaining);
                 const badge = remaining > 0 
                     ? `<span class="text-emerald-400">${remaining} hak kaldı</span>`
                     : `<span class="text-amber-400">Son hakkınız!</span>`;
                 $body.prepend(`<div class="text-[10px] text-center mb-4 py-2 px-3 bg-white/5 rounded-lg">${badge}</div>`);
+            } else if (result.usage && result.usage.is_premium) {
+                console.log("[ORBIS] 💎 Premium user - unlimited access");
             }
         } else {
+            console.error("[ORBIS] ❌ AI interpretation error:", result.error);
             $body.html(`<p class="text-red-400 text-xs">Error: ${result.error}</p>`);
         }
     } catch (error) {

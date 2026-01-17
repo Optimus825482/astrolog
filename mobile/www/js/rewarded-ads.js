@@ -12,11 +12,20 @@ const OrbisRewardedAds = {
    * Rewarded ad sistemini başlat
    */
   async init() {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      console.log("[RewardedAds] ⚠️ Already initialized");
+      return;
+    }
 
     try {
+      console.log("[RewardedAds] 🚀 Initializing...");
+      console.log(
+        "[RewardedAds] 🔍 AdMob available:",
+        typeof AdMob !== "undefined",
+      );
+
       if (typeof AdMob === "undefined") {
-        console.warn("[RewardedAds] AdMob not available");
+        console.warn("[RewardedAds] ❌ AdMob not available (web environment)");
         return;
       }
 
@@ -24,9 +33,9 @@ const OrbisRewardedAds = {
       await this.prepareRewardedAd();
 
       this.isInitialized = true;
-      console.log("[RewardedAds] Initialized");
+      console.log("[RewardedAds] ✅ Initialized successfully");
     } catch (error) {
-      console.error("[RewardedAds] Init error:", error);
+      console.error("[RewardedAds] ❌ Init error:", error);
     }
   },
 
@@ -35,6 +44,7 @@ const OrbisRewardedAds = {
    */
   async prepareRewardedAd() {
     try {
+      console.log("[RewardedAds] 📦 Preparing rewarded ad...");
       const adUnitId = "ca-app-pub-2444093901783574/9083651006"; // ORBIS Rewarded Analysis
 
       await AdMob.prepareRewardVideoAd({
@@ -43,9 +53,9 @@ const OrbisRewardedAds = {
       });
 
       this.isAdReady = true;
-      console.log("[RewardedAds] Ad prepared");
+      console.log("[RewardedAds] ✅ Ad prepared and ready");
     } catch (error) {
-      console.error("[RewardedAds] Prepare error:", error);
+      console.error("[RewardedAds] ❌ Prepare error:", error);
       this.isAdReady = false;
     }
   },
@@ -56,33 +66,44 @@ const OrbisRewardedAds = {
    * @returns {Promise<boolean>} Ödül kazanıldı mı
    */
   async showRewardedAd(purpose = "analysis") {
+    console.log(`[RewardedAds] 🎬 showRewardedAd called for: ${purpose}`);
+    console.log(`[RewardedAds] 🔍 isAdReady: ${this.isAdReady}`);
+
     return new Promise(async (resolve) => {
       try {
         if (!this.isAdReady) {
-          console.warn("[RewardedAds] Ad not ready, preparing...");
+          console.warn("[RewardedAds] ⚠️ Ad not ready, preparing...");
           await this.prepareRewardedAd();
 
           if (!this.isAdReady) {
-            console.error("[RewardedAds] Could not prepare ad");
+            console.error(
+              "[RewardedAds] ❌ Could not prepare ad - fallback to allow",
+            );
             // Fallback: Reklam gösterilemezse izin ver (test için)
             resolve(true);
             return;
           }
         }
 
+        console.log("[RewardedAds] ✅ Ad ready, setting up callbacks...");
+
         // Ödül callback'i ayarla
         this.currentRewardCallback = (rewarded) => {
           console.log(
-            `[RewardedAds] Reward ${rewarded ? "earned" : "not earned"} for ${purpose}`,
+            `[RewardedAds] 🎁 Reward ${rewarded ? "earned ✅" : "not earned ❌"} for ${purpose}`,
           );
           resolve(rewarded);
 
           // Yeni reklam hazırla
-          setTimeout(() => this.prepareRewardedAd(), 1000);
+          setTimeout(() => {
+            console.log("[RewardedAds] 📦 Preparing next ad...");
+            this.prepareRewardedAd();
+          }, 1000);
         };
 
         // Event listener'ları ekle
         AdMob.addListener("onRewardedVideoAdRewarded", () => {
+          console.log("[RewardedAds] 🎉 Event: onRewardedVideoAdRewarded");
           if (this.currentRewardCallback) {
             this.currentRewardCallback(true);
             this.currentRewardCallback = null;
@@ -90,6 +111,7 @@ const OrbisRewardedAds = {
         });
 
         AdMob.addListener("onRewardedVideoAdClosed", () => {
+          console.log("[RewardedAds] 🚪 Event: onRewardedVideoAdClosed");
           if (this.currentRewardCallback) {
             this.currentRewardCallback(false);
             this.currentRewardCallback = null;
@@ -97,7 +119,9 @@ const OrbisRewardedAds = {
         });
 
         AdMob.addListener("onRewardedVideoAdFailedToLoad", () => {
-          console.error("[RewardedAds] Failed to load");
+          console.error(
+            "[RewardedAds] ❌ Event: onRewardedVideoAdFailedToLoad",
+          );
           if (this.currentRewardCallback) {
             // Fallback: Reklam yüklenemezse izin ver
             this.currentRewardCallback(true);
@@ -106,10 +130,12 @@ const OrbisRewardedAds = {
         });
 
         // Reklamı göster
+        console.log("[RewardedAds] 🎬 Showing ad now...");
         await AdMob.showRewardVideoAd();
         this.isAdReady = false;
+        console.log("[RewardedAds] ✅ Ad shown, waiting for result...");
       } catch (error) {
-        console.error("[RewardedAds] Show error:", error);
+        console.error("[RewardedAds] ❌ Show error:", error);
         // Fallback: Hata durumunda izin ver
         resolve(true);
       }
@@ -120,7 +146,7 @@ const OrbisRewardedAds = {
    * Analiz için rewarded ad göster
    */
   async showForAnalysis() {
-    console.log("[RewardedAds] Showing ad for analysis");
+    console.log("[RewardedAds] 📊 showForAnalysis called");
     return await this.showRewardedAd("analysis");
   },
 
@@ -128,7 +154,7 @@ const OrbisRewardedAds = {
    * AI yorum için rewarded ad göster
    */
   async showForInterpretation() {
-    console.log("[RewardedAds] Showing ad for interpretation");
+    console.log("[RewardedAds] 💬 showForInterpretation called");
     return await this.showRewardedAd("interpretation");
   },
 };
@@ -138,5 +164,10 @@ window.OrbisRewardedAds = OrbisRewardedAds;
 
 // Başlat
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("[RewardedAds] 🚀 DOMContentLoaded - Starting initialization...");
   OrbisRewardedAds.init();
+  console.log(
+    "[RewardedAds] 🔍 window.OrbisRewardedAds:",
+    window.OrbisRewardedAds,
+  );
 });
