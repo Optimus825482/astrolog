@@ -2297,23 +2297,64 @@ super() }}
 
         openAIModal();
 
+        // 🎯 REKLAM GÖSTER - AI yorum açılışında (her 2 yorumda 1)
+        if (window.OrbisApp && typeof window.OrbisApp.onAICommentOpen === 'function') {
+            window.OrbisApp.onAICommentOpen();
+        }
+
         try {
+            // Device ID ve email al (kullanım takibi için)
+            const deviceId = localStorage.getItem('orbis_device_id') || 'web_' + Date.now();
+            const userEmail = window.OrbisFirebase?.getCurrentUser()?.email || null;
+            
             const response = await fetch("/api/get_ai_interpretation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     interpretation_type: tabId,
                     astro_data: astroData,
-                    user_name: astroData.user_name || "Kullanıcı"
+                    user_name: astroData.user_name || "Kullanıcı",
+                    device_id: deviceId,
+                    email: userEmail
                 })
             });
             const result = await response.json();
+
+        // Günlük limit kontrolü
+        if (response.status === 429 || result.error === 'daily_limit_reached') {
+            $body.html(`
+                <div class="flex flex-col items-center justify-center py-8 px-4 text-center">
+                    <div class="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center mb-6">
+                        <span class="material-icons-round text-4xl text-amber-400">lock</span>
+                    </div>
+                    <h3 class="text-white font-bold text-lg mb-3">Günlük Limit Doldu</h3>
+                    <p class="text-slate-400 text-sm mb-6 max-w-xs">
+                        Bugünkü 3 ücretsiz AI yorumunuzu kullandınız. 
+                        Premium'a geçerek sınırsız yorum alabilirsiniz!
+                    </p>
+                    <button onclick="showPremiumModal()" class="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 active:scale-95 transition-all">
+                        💎 Premium'a Geç
+                    </button>
+                    <p class="text-[10px] text-slate-500 mt-4">Yarın saat 00:00'da limitiniz yenilenir</p>
+                </div>
+            `);
+            return;
+        }
 
         if (result.success) {
             currentInterpretationText = result.interpretation;
             $body.html(marked.parse(result.interpretation));
             // Yorum yüklenince footer'ı göster
             $('#ai-modal-footer').removeClass('hidden');
+            
+            // Kalan yorum sayısını göster (premium değilse)
+            if (result.usage && !result.usage.is_premium && result.usage.remaining !== 'unlimited') {
+                const remaining = result.usage.remaining;
+                const badge = remaining > 0 
+                    ? `<span class="text-emerald-400">${remaining} yorum kaldı</span>`
+                    : `<span class="text-amber-400">Son yorumunuz!</span>`;
+                $body.prepend(`<div class="text-[10px] text-center mb-4 py-2 px-3 bg-white/5 rounded-lg">${badge}</div>`);
+            }
         } else {
             $body.html(`<p class="text-red-400 text-xs">Error: ${result.error}</p>`);
         }
@@ -2436,13 +2477,19 @@ super() }}
             // Progress'i %50'ye çıkar (API çağrısı yapılıyor)
             CosmicLoader.setProgress(50);
             
+            // Device ID ve email al (kullanım takibi için)
+            const deviceId = localStorage.getItem('orbis_device_id') || 'web_' + Date.now();
+            const userEmail = window.OrbisFirebase?.getCurrentUser()?.email || null;
+            
             const response = await fetch("/api/get_ai_interpretation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     interpretation_type: "summary",
                     astro_data: astroData,
-                    user_name: astroData.user_name || "Kullanıcı"
+                    user_name: astroData.user_name || "Kullanıcı",
+                    device_id: deviceId,
+                    email: userEmail
                 })
             });
             
@@ -2450,6 +2497,26 @@ super() }}
             CosmicLoader.setProgress(80);
             
             const result = await response.json();
+
+            // Günlük limit kontrolü
+            if (response.status === 429 || result.error === 'daily_limit_reached') {
+                $content.html(`
+                    <div class="flex flex-col items-center justify-center py-6 text-center">
+                        <div class="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mb-4">
+                            <span class="material-icons-round text-3xl text-amber-400">lock</span>
+                        </div>
+                        <h3 class="text-white font-bold text-sm mb-2">Günlük Limit Doldu</h3>
+                        <p class="text-slate-400 text-[11px] mb-4 max-w-xs">
+                            Bugünkü 3 ücretsiz AI yorumunuzu kullandınız.
+                        </p>
+                        <button onclick="showPremiumModal()" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-lg">
+                            💎 Premium'a Geç
+                        </button>
+                    </div>
+                `);
+                CosmicLoader.forceHide();
+                return;
+            }
 
             if (result.success) {
                 // Progress'i %100'e çıkar
@@ -2699,8 +2766,12 @@ super() }}
         // Stop any ongoing speech
         await this.stop();
 
-        // Prepare chunks
-        this.chunks = this.splitIntoChunks(text);
+        // Clean text for speech (remove emojis, symbols, markdown)
+        const cleanedText = this.cleanTextForSpeech(text);
+        console.log('[TTS] Text cleaned, original length:', text.length, 'cleaned length:', cleanedText.length);
+
+        // Prepare chunks with cleaned text
+        this.chunks = this.splitIntoChunks(cleanedText);
         this.totalChunks = this.chunks.length;
         this.currentChunkIndex = 0;
         this.status = 'playing';
@@ -2718,6 +2789,151 @@ super() }}
         } else {
           this.speakCurrentChunk();
         }
+      },
+
+      /**
+       * Metni sesli okuma için temizler
+       * - Emojileri kaldırır
+       * - Markdown sembollerini kaldırır (*, #, -, _)
+       * - Özel karakterleri ve sembolleri kaldırır
+       * - Fazla boşlukları temizler
+       */
+      cleanTextForSpeech(text) {
+        if (!text) return '';
+        
+        let cleaned = text
+          // Emoji'leri kaldır (Unicode emoji ranges)
+          .replace(/[\u{1F600}-\u{1F64F}]/gu, '') // Emoticons
+          .replace(/[\u{1F300}-\u{1F5FF}]/gu, '') // Misc Symbols and Pictographs
+          .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // Transport and Map
+          .replace(/[\u{1F700}-\u{1F77F}]/gu, '') // Alchemical Symbols
+          .replace(/[\u{1F780}-\u{1F7FF}]/gu, '') // Geometric Shapes Extended
+          .replace(/[\u{1F800}-\u{1F8FF}]/gu, '') // Supplemental Arrows-C
+          .replace(/[\u{1F900}-\u{1F9FF}]/gu, '') // Supplemental Symbols and Pictographs
+          .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '') // Chess Symbols
+          .replace(/[\u{1FA70}-\u{1FAFF}]/gu, '') // Symbols and Pictographs Extended-A
+          .replace(/[\u{2600}-\u{26FF}]/gu, '')   // Misc symbols (☀, ★, etc.)
+          .replace(/[\u{2700}-\u{27BF}]/gu, '')   // Dingbats
+          .replace(/[\u{231A}-\u{231B}]/gu, '')   // Watch, Hourglass
+          .replace(/[\u{23E9}-\u{23F3}]/gu, '')   // Media control symbols
+          .replace(/[\u{23F8}-\u{23FA}]/gu, '')   // Media control symbols
+          .replace(/[\u{25AA}-\u{25AB}]/gu, '')   // Squares
+          .replace(/[\u{25B6}]/gu, '')            // Play button
+          .replace(/[\u{25C0}]/gu, '')            // Reverse button
+          .replace(/[\u{25FB}-\u{25FE}]/gu, '')   // Squares
+          .replace(/[\u{2614}-\u{2615}]/gu, '')   // Umbrella, Hot beverage
+          .replace(/[\u{2648}-\u{2653}]/gu, '')   // Zodiac signs
+          .replace(/[\u{267F}]/gu, '')            // Wheelchair
+          .replace(/[\u{2693}]/gu, '')            // Anchor
+          .replace(/[\u{26A1}]/gu, '')            // Lightning
+          .replace(/[\u{26AA}-\u{26AB}]/gu, '')   // Circles
+          .replace(/[\u{26BD}-\u{26BE}]/gu, '')   // Soccer, Baseball
+          .replace(/[\u{26C4}-\u{26C5}]/gu, '')   // Snowman, Sun
+          .replace(/[\u{26CE}]/gu, '')            // Ophiuchus
+          .replace(/[\u{26D4}]/gu, '')            // No entry
+          .replace(/[\u{26EA}]/gu, '')            // Church
+          .replace(/[\u{26F2}-\u{26F3}]/gu, '')   // Fountain, Golf
+          .replace(/[\u{26F5}]/gu, '')            // Sailboat
+          .replace(/[\u{26FA}]/gu, '')            // Tent
+          .replace(/[\u{26FD}]/gu, '')            // Fuel pump
+          .replace(/[\u{2702}]/gu, '')            // Scissors
+          .replace(/[\u{2705}]/gu, '')            // Check mark
+          .replace(/[\u{2708}-\u{270D}]/gu, '')   // Airplane to Writing hand
+          .replace(/[\u{270F}]/gu, '')            // Pencil
+          .replace(/[\u{2712}]/gu, '')            // Black nib
+          .replace(/[\u{2714}]/gu, '')            // Check mark
+          .replace(/[\u{2716}]/gu, '')            // X mark
+          .replace(/[\u{271D}]/gu, '')            // Latin cross
+          .replace(/[\u{2721}]/gu, '')            // Star of David
+          .replace(/[\u{2728}]/gu, '')            // Sparkles
+          .replace(/[\u{2733}-\u{2734}]/gu, '')   // Eight spoked asterisk
+          .replace(/[\u{2744}]/gu, '')            // Snowflake
+          .replace(/[\u{2747}]/gu, '')            // Sparkle
+          .replace(/[\u{274C}]/gu, '')            // Cross mark
+          .replace(/[\u{274E}]/gu, '')            // Cross mark
+          .replace(/[\u{2753}-\u{2755}]/gu, '')   // Question marks
+          .replace(/[\u{2757}]/gu, '')            // Exclamation mark
+          .replace(/[\u{2763}-\u{2764}]/gu, '')   // Heart exclamation, Heart
+          .replace(/[\u{2795}-\u{2797}]/gu, '')   // Plus, Minus, Division
+          .replace(/[\u{27A1}]/gu, '')            // Right arrow
+          .replace(/[\u{27B0}]/gu, '')            // Curly loop
+          .replace(/[\u{27BF}]/gu, '')            // Double curly loop
+          .replace(/[\u{2934}-\u{2935}]/gu, '')   // Arrows
+          .replace(/[\u{2B05}-\u{2B07}]/gu, '')   // Arrows
+          .replace(/[\u{2B1B}-\u{2B1C}]/gu, '')   // Squares
+          .replace(/[\u{2B50}]/gu, '')            // Star
+          .replace(/[\u{2B55}]/gu, '')            // Circle
+          .replace(/[\u{3030}]/gu, '')            // Wavy dash
+          .replace(/[\u{303D}]/gu, '')            // Part alternation mark
+          .replace(/[\u{3297}]/gu, '')            // Circled Ideograph Congratulation
+          .replace(/[\u{3299}]/gu, '')            // Circled Ideograph Secret
+          
+          // Markdown başlık sembollerini kaldır
+          .replace(/^#{1,6}\s*/gm, '')
+          
+          // Bold/italic markdown'ı kaldır ama metni koru
+          .replace(/\*\*\*(.*?)\*\*\*/g, '$1')   // ***bold italic***
+          .replace(/\*\*(.*?)\*\*/g, '$1')       // **bold**
+          .replace(/\*(.*?)\*/g, '$1')           // *italic*
+          .replace(/___(.*?)___/g, '$1')         // ___bold italic___
+          .replace(/__(.*?)__/g, '$1')           // __bold__
+          .replace(/_(.*?)_/g, '$1')             // _italic_
+          
+          // Yalnız kalan yıldızları kaldır (*** veya *** gibi ayırıcılar)
+          .replace(/\*{2,}/g, ' ')               // ** veya *** gibi
+          .replace(/\s\*\s/g, ' ')               // " * " tek yıldız
+          
+          // Tire çizgileri (ayırıcılar) kaldır
+          .replace(/-{3,}/g, ' ')                // --- veya daha fazla
+          .replace(/_{3,}/g, ' ')                // ___ veya daha fazla
+          .replace(/={3,}/g, ' ')                // === veya daha fazla
+          
+          // Bullet point ve liste işaretlerini kaldır
+          .replace(/^[\s]*[-•●◦▪▸►]\s*/gm, '')
+          .replace(/^[\s]*\d+\.\s*/gm, '')       // Numaralı liste
+          
+          // Özel semboller
+          .replace(/[→←↑↓↔↕⇒⇐⇑⇓⇔]/g, '')      // Oklar
+          .replace(/[★☆✦✧✩✪✫✬✭✮✯]/g, '')      // Yıldızlar
+          .replace(/[♠♣♥♦]/g, '')                // Kart sembolleri
+          .replace(/[♈♉♊♋♌♍♎♏♐♑♒♓]/g, '')    // Burç sembolleri
+          .replace(/[☯☮☪☭✝✡☸]/g, '')            // Dini semboller
+          .replace(/[°©®™℃℉]/g, '')              // Birim ve ticari semboller
+          .replace(/[«»„""''‚]/g, '"')           // Tırnakları standartlaştır
+          .replace(/[–—]/g, ', ')                // Em/en dash'leri virgüle çevir
+          .replace(/[…]/g, '.')                  // Üç nokta karakterini tek noktaya çevir
+          
+          // Çoklu noktaları tek noktaya dönüştür (uzun duraklama önleme)
+          .replace(/\.{2,}/g, '.')               // .. veya ... veya .... → tek nokta
+          .replace(/\s*\.\s*\.\s*/g, '.')        // . . . gibi boşluklu noktalar
+          
+          // Ardışık noktalama işaretlerini temizle
+          .replace(/[!?]{2,}/g, '!')             // !! veya ??? → tek !
+          .replace(/[,;:]{2,}/g, ',')            // ,, veya ;; → tek virgül
+          .replace(/\s*[,;:]\s*[,;:]\s*/g, ', ') // Peş peşe virgüller
+          
+          // Nokta-virgül arası boşlukları düzelt
+          .replace(/\s+\./g, '.')                // " ." → "."
+          .replace(/\s+,/g, ',')                 // " ," → ","
+          .replace(/,+/g, ',')                   // Çoklu virgüller
+          
+          // URL'leri kaldır
+          .replace(/https?:\/\/[^\s]+/g, '')
+          
+          // Parantez içindeki kısaltmaları temizle (örn: (TL), (USD))
+          .replace(/\([A-Z]{2,5}\)/g, '')
+          
+          // Fazla boşlukları temizle
+          .replace(/\s{2,}/g, ' ')
+          .replace(/^\s+/gm, '')
+          .replace(/\s+$/gm, '')
+          
+          // Boş satırları azalt
+          .replace(/\n{3,}/g, '\n\n')
+          
+          .trim();
+        
+        return cleaned;
       },
 
       async speakNative() {
@@ -2959,5 +3175,221 @@ super() }}
         alert('Sesli okuma başlatılamadı: ' + e.message);
       }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PREMIUM MODAL - Satın Alma Ekranı
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    function showPremiumModal() {
+      const modal = document.getElementById('premium-purchase-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function closePremiumModal() {
+      const modal = document.getElementById('premium-purchase-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+      }
+    }
+
+    async function purchasePremium(planType) {
+      const btn = event.target.closest('button');
+      const originalText = btn.innerHTML;
+      
+      // Loading state
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-icons-round animate-spin text-sm">sync</span> İşleniyor...';
+
+      try {
+        // IAP modülü kontrolü
+        if (window.OrbisIAP) {
+          const productId = planType === 'monthly' 
+            ? window.OrbisIAP.PRODUCTS.PREMIUM_MONTHLY 
+            : window.OrbisIAP.PRODUCTS.PREMIUM_YEARLY;
+          
+          const result = await window.OrbisIAP.purchase(productId);
+          
+          if (result.success) {
+            // Başarılı satın alma
+            showPurchaseSuccess(result.message);
+            closePremiumModal();
+            
+            // Sayfayı yenile (premium durumu güncellensin)
+            setTimeout(() => location.reload(), 2000);
+          } else {
+            // Hata veya iptal
+            showPurchaseError(result.message);
+          }
+        } else {
+          // Web'de çalışıyorsa bilgi ver
+          showPurchaseError('Satın alma işlemi sadece mobil uygulamada yapılabilir. Lütfen Google Play Store\'dan ORBIS uygulamasını indirin.');
+        }
+      } catch (error) {
+        console.error('[Premium] Purchase error:', error);
+        showPurchaseError('Bir hata oluştu. Lütfen tekrar deneyin.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    async function restorePurchases() {
+      const btn = event.target.closest('button');
+      const originalText = btn.innerHTML;
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-icons-round animate-spin text-sm">sync</span>';
+
+      try {
+        if (window.OrbisIAP) {
+          const result = await window.OrbisIAP.restorePurchases();
+          
+          if (result.success) {
+            showPurchaseSuccess(result.message);
+            closePremiumModal();
+            setTimeout(() => location.reload(), 2000);
+          } else {
+            showPurchaseError(result.message);
+          }
+        } else {
+          showPurchaseError('Bu özellik sadece mobil uygulamada kullanılabilir.');
+        }
+      } catch (error) {
+        showPurchaseError('Geri yükleme sırasında bir hata oluştu.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    function showPurchaseSuccess(message) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[300] bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in';
+      toast.innerHTML = `<span class="material-icons-round">check_circle</span><span class="text-sm font-medium">${message}</span>`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    function showPurchaseError(message) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[300] bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in max-w-sm text-center';
+      toast.innerHTML = `<span class="material-icons-round">error</span><span class="text-sm font-medium">${message}</span>`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    }
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PREMIUM PURCHASE MODAL - Satın Alma Ekranı
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="premium-purchase-modal" class="fixed inset-0 bg-black/90 backdrop-blur-xl z-[250] hidden items-center justify-center p-4">
+  <div class="relative w-full max-w-md bg-gradient-to-b from-slate-900 to-slate-950 rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
+    <!-- Close Button -->
+    <button onclick="closePremiumModal()" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all z-10">
+      <span class="material-icons-round">close</span>
+    </button>
+
+    <!-- Header -->
+    <div class="relative pt-8 pb-6 px-6 text-center overflow-hidden">
+      <!-- Background Glow -->
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-gradient-to-b from-amber-500/20 to-transparent blur-[80px] rounded-full"></div>
+      
+      <div class="relative z-10">
+        <!-- Premium Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-full border border-amber-500/30 mb-4">
+          <span class="text-amber-400 text-lg">💎</span>
+          <span class="text-amber-300 text-xs font-bold uppercase tracking-widest">Premium</span>
+        </div>
+        
+        <h2 class="text-2xl font-bold text-white mb-2">Sınırsız Kozmik Rehberlik</h2>
+        <p class="text-slate-400 text-sm">Tüm AI yorumlarına sınırsız erişim kazanın</p>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="px-6 pb-6">
+      <div class="space-y-3 mb-6">
+        <div class="flex items-center gap-3 text-sm">
+          <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-round text-emerald-400 text-sm">check</span>
+          </span>
+          <span class="text-slate-300">Sınırsız AI yorum ve analiz</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-round text-emerald-400 text-sm">check</span>
+          </span>
+          <span class="text-slate-300">Reklamsız deneyim</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-round text-emerald-400 text-sm">check</span>
+          </span>
+          <span class="text-slate-300">Detaylı transit ve dönem analizleri</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-round text-emerald-400 text-sm">check</span>
+          </span>
+          <span class="text-slate-300">Öncelikli destek</span>
+        </div>
+      </div>
+
+      <!-- Pricing Cards -->
+      <div class="space-y-3 mb-6">
+        <!-- Monthly Plan -->
+        <button onclick="purchasePremium('monthly')" class="w-full p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/50 rounded-2xl transition-all group text-left">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-white font-bold">Aylık Plan</p>
+              <p class="text-slate-500 text-xs">Her ay yenilenir</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xl font-bold text-white">₺49,99</p>
+              <p class="text-slate-500 text-[10px]">/ay</p>
+            </div>
+          </div>
+        </button>
+
+        <!-- Yearly Plan (Recommended) -->
+        <button onclick="purchasePremium('yearly')" class="w-full p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border-2 border-amber-500/50 hover:border-amber-400 rounded-2xl transition-all group text-left relative overflow-hidden">
+          <!-- Best Value Badge -->
+          <div class="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl uppercase tracking-wider">
+            2 Ay Hediye
+          </div>
+          
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-white font-bold">Yıllık Plan</p>
+              <p class="text-amber-400/70 text-xs">En avantajlı seçenek</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xl font-bold text-white">₺399,99</p>
+              <p class="text-slate-500 text-[10px]">/yıl <span class="line-through text-slate-600">₺599,88</span></p>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Restore Purchases -->
+      <button onclick="restorePurchases()" class="w-full py-3 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors flex items-center justify-center gap-2">
+        <span class="material-icons-round text-sm">restore</span>
+        Satın Alımları Geri Yükle
+      </button>
+
+      <!-- Terms -->
+      <p class="text-[9px] text-slate-600 text-center mt-4 leading-relaxed">
+        Satın alma işlemi Google Play hesabınız üzerinden gerçekleştirilir. 
+        Abonelik dönem sonunda otomatik yenilenir. İstediğiniz zaman iptal edebilirsiniz.
+      </p>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
