@@ -35,7 +35,7 @@ const OrbisRewardedAds = {
    */
   async prepareRewardedAd() {
     try {
-      const adUnitId = "ca-app-pub-2444093901783574/8765432109"; // REWARDED AD UNIT ID
+      const adUnitId = "ca-app-pub-2444093901783574/9083651006"; // ORBIS Rewarded Analysis
 
       await AdMob.prepareRewardVideoAd({
         adId: adUnitId,
