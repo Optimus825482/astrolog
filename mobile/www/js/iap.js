@@ -7,12 +7,14 @@
 const OrbisIAP = {
   // Product IDs (Google Play Console'da tanımlı olmalı)
   PRODUCTS: {
+    PREMIUM_DAILY: "astro_premium_daily", // YENİ: Günlük 30 TL
     PREMIUM_MONTHLY: "astro_premium_monthly",
     PREMIUM_YEARLY: "astro_premium_yearly",
   },
 
   // Fiyatlar (TRY)
   PRICES: {
+    PREMIUM_DAILY: "₺30/gün", // YENİ
     PREMIUM_MONTHLY: "₺49,99/ay",
     PREMIUM_YEARLY: "₺399,99/yıl",
   },
@@ -60,7 +62,7 @@ const OrbisIAP = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ device_id: deviceId, email: email }),
-        }
+        },
       );
 
       if (response.ok) {
