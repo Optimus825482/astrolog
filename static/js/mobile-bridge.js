@@ -14,9 +14,10 @@ const OrbisBridge = {
 
   CONFIG: {
     // Ücretsiz kullanıcı limitleri
-    FREE_FIRST_DAY_TOTAL: 8, // İlk gün toplam
-    FREE_FIRST_DAY_NO_AD: 3, // İlk gün reklamsız
-    FREE_DAILY_LIMIT: 5, // Sonraki günler (hepsi reklamlı)
+    // ARTIK HER ANALİZ İÇİN REKLAM ZORUNLU (Premium hariç)
+    FREE_FIRST_DAY_TOTAL: 999, // Sınırsız (reklam izleyerek)
+    FREE_FIRST_DAY_NO_AD: 0, // Reklamsız hak YOK
+    FREE_DAILY_LIMIT: 999, // Sınırsız (reklam izleyerek)
 
     // Premium paketleri
     PREMIUM_PACKAGES: [
@@ -438,8 +439,8 @@ const OrbisBridge = {
 
   needsAd() {
     if (this.state.isPremium) return false;
-    if (!this.isFirstDay()) return true; // İlk gün değilse her zaman reklam
-    return this.state.todayUsage >= this.CONFIG.FREE_FIRST_DAY_NO_AD; // İlk 3'ten sonra reklam
+    // ÜCRETSİZ KULLANICI = HER ZAMAN REKLAM GEREKLİ
+    return true;
   },
 
   canAnalyze() {

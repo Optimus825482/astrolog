@@ -45,7 +45,8 @@ const OrbisRewardedAds = {
   async prepareRewardedAd() {
     try {
       console.log("[RewardedAds] 📦 Preparing rewarded ad...");
-      const adUnitId = "ca-app-pub-2444093901783574/9083651006"; // ORBIS Rewarded Analysis
+      // Ödüllü Video (Rewarded) - Analiz ve AI yorum için
+      const adUnitId = "ca-app-pub-2444093901783574/9083651006";
 
       await AdMob.prepareRewardVideoAd({
         adId: adUnitId,

@@ -4,6 +4,9 @@ Flask-CORS==4.0.0
 Flask-Caching==2.1.0
 Werkzeug==3.0.1
 
+# Security
+Flask-Talisman==1.1.0
+
 # Astrology Calculations
 pyswisseph==2.10.3.2
 

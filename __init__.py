@@ -5,6 +5,7 @@ import logging
 from flask import Flask, send_from_directory, jsonify
 import config
 from extensions import cors, init_extensions
+from flask_talisman import Talisman
 
 
 def create_app(test_config=None):
@@ -55,8 +56,51 @@ def create_app(test_config=None):
     app.jinja_env.filters["time"] = utils.format_time
     app.jinja_env.filters["safe_round"] = utils.safe_round
 
+    # Health Check Endpoint (Docker/Coolify için)
+    @app.route("/api/health")
+    def health_check():
+        return jsonify({
+            "status": "healthy",
+            "service": "orbis-backend",
+            "version": "1.0.0"
+        }), 200
+
     # Extension'ları başlat
     init_extensions(app)
+
+    # Security headers and HTTPS enforcement
+    if os.getenv("FLASK_ENV") == "production":
+        # Production'da Talisman aktif - HTTP security headers
+        Talisman(
+            app,
+            force_https=True,
+            strict_transport_security=True,
+            session_cookie_secure=True,
+            session_cookie_httponly=True,
+            session_cookie_samesite='Lax',
+            content_security_policy={
+                'default-src': "'self'",
+                'script-src': "'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
+                'style-src': "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
+                'img-src': "'self' data: https: blob:",
+                'font-src': "'self' data: https:",
+                'connect-src': "'self' https://fcm.googleapis.com https://*.firebaseio.com",
+                'frame-src': "'none'",
+            },
+            force_https_permanent=True
+        )
+    else:
+        # Development'da TLS skip et (HTTP için)
+        Talisman(
+            app,
+            force_https=False,
+            session_cookie_secure=False,
+        )
+    
+    # CSRF protection için secret key kontrolü
+    if not app.config.get("SECRET_KEY"):
+        app.logger.warning("SECRET_KEY not set! Using temporary key.")
+        app.config["SECRET_KEY"] = os.urandom(32)
 
     # Tailwind CSS varlık kontrolü (bir kez yapalım)
     tailwind_path = (

@@ -35,6 +35,7 @@ class EnvConfig:
     # Required environment variables (no defaults allowed)
     REQUIRED_VARS: List[str] = [
         "OPENCAGE_API_KEY",
+        "SECRET_KEY",  # Required for session security in production
         # Add other production-critical variables as needed
     ]
     

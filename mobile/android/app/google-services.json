@@ -7,18 +7,18 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:768649602152:android:60ed300755196e4d1907dd",
+        "mobilesdk_app_id": "1:768649602152:android:368bf247de7864521907dd",
         "android_client_info": {
-          "package_name": "com.orbis.astrology"
+          "package_name": "com.orbisapp.astrology"
         }
       },
       "oauth_client": [
         {
-          "client_id": "768649602152-9j7rf29crlakt0659dphhskp5j7c7e62.apps.googleusercontent.com",
+          "client_id": "768649602152-ilcp9ql5r3nuo48lc47ggcr5re4l029p.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.orbis.astrology",
-            "certificate_hash": "dd4fba0a9541c6cbb2814af1505aa53ad4b80b87"
+            "package_name": "com.orbisapp.astrology",
+            "certificate_hash": "6716164640df40f246eb57327bbd09c7b6afa538"
           }
         },
         {

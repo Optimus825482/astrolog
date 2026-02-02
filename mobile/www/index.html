@@ -1,163 +1,154 @@
 <!doctype html>
 <html lang="tr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
-    <meta name="theme-color" content="#151022" />
-    <meta name="color-scheme" content="dark" />
-    <title>ORBIS - Kaderin Geometrisi</title>
 
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#151022" />
+  <meta name="color-scheme" content="dark" />
+  <title>ORBIS - Kaderin Geometrisi</title>
 
-      body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: #151022;
-        color: white;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: env(safe-area-inset-top) env(safe-area-inset-right)
-          env(safe-area-inset-bottom) env(safe-area-inset-left);
-      }
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-      .loader {
-        text-align: center;
-      }
+    body {
+      font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #151022;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
 
-      .logo {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        border: 3px solid rgba(91, 43, 238, 0.6);
+    .loader {
+      text-align: center;
+    }
+
+    .logo {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 3px solid rgba(91, 43, 238, 0.6);
+      box-shadow: 0 0 40px rgba(91, 43, 238, 0.4);
+      margin-bottom: 24px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      margin-bottom: 8px;
+    }
+
+    p {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.4em;
+      color: #5b2bee;
+      font-weight: 600;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(91, 43, 238, 0.2);
+      border-top-color: #5b2bee;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 24px auto 0;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
         box-shadow: 0 0 40px rgba(91, 43, 238, 0.4);
-        margin-bottom: 24px;
-        animation: pulse 2s ease-in-out infinite;
       }
 
-      h1 {
-        font-size: 32px;
-        font-weight: 700;
-        letter-spacing: 0.2em;
-        margin-bottom: 8px;
+      50% {
+        box-shadow: 0 0 60px rgba(91, 43, 238, 0.6);
       }
+    }
 
-      p {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.4em;
-        color: #5b2bee;
-        font-weight: 600;
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
       }
+    }
 
-      .spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(91, 43, 238, 0.2);
-        border-top-color: #5b2bee;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 24px auto 0;
-      }
+    /* Banner Ad Space - Bottom */
+    .ad-banner-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
 
-      @keyframes pulse {
-        0%,
-        100% {
-          box-shadow: 0 0 40px rgba(91, 43, 238, 0.4);
-        }
-        50% {
-          box-shadow: 0 0 60px rgba(91, 43, 238, 0.6);
-        }
-      }
+<body>
+  <div class="loader">
+    <img src="assets/logo.png" alt="ORBIS" class="logo" onerror="this.style.display = 'none'" />
+    <h1>ORBIS</h1>
+    <p>Kaderin Geometrisi</p>
+    <div class="spinner"></div>
 
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      /* Banner Ad Space - Bottom */
-      .ad-banner-bottom {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 50px;
-        background: rgba(0, 0, 0, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        color: rgba(255, 255, 255, 0.3);
-      }
-    </style>
-  </head>
-  <body>
-    <div class="loader">
-      <img
-        src="assets/logo.png"
-        alt="ORBIS"
-        class="logo"
-        onerror="this.style.display = 'none'"
-      />
-      <h1>ORBIS</h1>
-      <p>Kaderin Geometrisi</p>
-      <div class="spinner"></div>
-
-      <!-- Copyright & Disclaimer -->
-      <div
-        style="
+    <!-- Copyright & Disclaimer -->
+    <div style="
           margin-top: 40px;
           opacity: 0.5;
           max-width: 280px;
           text-align: center;
-        "
-      >
-        <p
-          style="
+        ">
+      <p style="
             font-size: 8px;
             letter-spacing: 0.05em;
             color: #888;
             line-height: 1.5;
             margin-bottom: 12px;
-          "
-        >
-          ⚠️ Bu uygulama yalnızca eğlence amaçlıdır. Yorumlar profesyonel
-          danışmanlık niteliği taşımaz.
-        </p>
-        <p style="font-size: 9px; letter-spacing: 0.1em; color: #666">
-          © 2025 ORBIS Astrology
-        </p>
-        <p
-          style="
+          ">
+        ⚠️ Bu uygulama yalnızca eğlence amaçlıdır. Yorumlar profesyonel
+        danışmanlık niteliği taşımaz.
+      </p>
+      <p style="font-size: 9px; letter-spacing: 0.1em; color: #666">
+        © 2026 ORBIS Astrology
+      </p>
+      <p style="
             font-size: 8px;
             letter-spacing: 0.1em;
             color: #555;
             margin-top: 4px;
-          "
-        >
-          by Erkan ERDEM
-        </p>
-      </div>
+          ">
+        by Erkan ERDEM
+      </p>
     </div>
+  </div>
 
-    <!-- Banner Ad Placeholder -->
-    <div class="ad-banner-bottom" id="banner-ad">Reklam Alanı</div>
+  <!-- Banner Ad Placeholder -->
+  <div class="ad-banner-bottom" id="banner-ad">Reklam Alanı</div>
 
-    <!-- Capacitor -->
-    <script src="js/capacitor.js"></script>
-    <script src="js/admob.js"></script>
-    <script src="js/rewarded-ads.js"></script>
-    <script src="js/app.js"></script>
-  </body>
+  <!-- Capacitor -->
+  <script src="js/capacitor.js"></script>
+  <script src="js/admob.js"></script>
+  <script src="js/rewarded-ads.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
 </html>

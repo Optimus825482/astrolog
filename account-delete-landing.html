@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hesap Silme - ORBIS</title>
+    <meta
+      name="description"
+      content="ORBIS hesabınızı ve verilerinizi kalıcı olarak silin. GDPR ve KVKK uyumlu hesap silme işlemi."
+    />
+    <link rel="icon" href="https://www.orbisastro.online/favicon.ico" />
+
+    <!-- Google Material Icons -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(
+          135deg,
+          #0f172a 0%,
+          #1e1b4b 50%,
+          #0f172a 100%
+        );
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        color: #e2e8f0;
+      }
+
+      .container {
+        max-width: 600px;
+        width: 100%;
+      }
+
+      .card {
+        background: rgba(30, 41, 59, 0.8);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+
+      .icon-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 24px;
+      }
+
+      .icon-wrapper {
+        width: 80px;
+        height: 80px;
+        background: rgba(239, 68, 68, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .material-symbols-rounded {
+        font-size: 48px;
+        color: #fca5a5;
+      }
+
+      h1 {
+        font-size: 28px;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 16px;
+        color: #ffffff;
+      }
+
+      .warning-box {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 24px;
+      }
+
+      .warning-box strong {
+        color: #fca5a5;
+        display: block;
+        margin-bottom: 12px;
+      }
+
+      .warning-box ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .warning-box li {
+        color: rgba(252, 165, 165, 0.8);
+        font-size: 14px;
+        margin-bottom: 8px;
+        padding-left: 20px;
+        position: relative;
+      }
+
+      .warning-box li::before {
+        content: "•";
+        color: #ef4444;
+        position: absolute;
+        left: 0;
+      }
+
+      .section {
+        margin-bottom: 24px;
+      }
+
+      h2 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #f1f5f9;
+      }
+
+      p {
+        color: #cbd5e1;
+        line-height: 1.6;
+        margin-bottom: 12px;
+        font-size: 14px;
+      }
+
+      ol {
+        color: #cbd5e1;
+        padding-left: 20px;
+        margin-bottom: 16px;
+      }
+
+      ol li {
+        margin-bottom: 8px;
+        line-height: 1.6;
+      }
+
+      .contact-box {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 16px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+
+      .contact-box a {
+        color: #60a5fa;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .contact-box a:hover {
+        text-decoration: underline;
+      }
+
+      .button {
+        display: inline-block;
+        background: #ef4444;
+        color: white;
+        padding: 16px 32px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        margin-top: 24px;
+        transition: all 0.3s ease;
+        text-align: center;
+        width: 100%;
+        font-size: 16px;
+      }
+
+      .button:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3);
+      }
+
+      .footer {
+        margin-top: 24px;
+        text-align: center;
+      }
+
+      .footer p {
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      .footer a {
+        color: #818cf8;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      .links {
+        margin-top: 16px;
+      }
+
+      .links a {
+        color: #60a5fa;
+        text-decoration: none;
+        margin: 0 8px;
+        font-size: 14px;
+      }
+
+      .links a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 640px) {
+        .card {
+          padding: 24px;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+
+        .icon-wrapper {
+          width: 64px;
+          height: 64px;
+        }
+
+        .material-symbols-rounded {
+          font-size: 36px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <!-- Icon -->
+        <div class="icon-container">
+          <div class="icon-wrapper">
+            <span class="material-symbols-rounded">warning</span>
+          </div>
+        </div>
+
+        <!-- Title -->
+        <h1>🗑️ Hesap Silme Talebi</h1>
+
+        <!-- Warning -->
+        <div class="warning-box">
+          <strong>⚠️ Önemli Uyarı</strong>
+          <p style="color: rgba(252, 165, 165, 0.9); margin-bottom: 12px">
+            Hesabınızı sildiğinizde, tüm verileriniz kalıcı olarak silinecektir
+            ve bu işlem geri alınamaz!
+          </p>
+          <ul>
+            <li>Tüm analiz geçmişiniz silinecek</li>
+            <li>Premium üyeliğiniz iptal edilecek</li>
+            <li>Kalan kredileriniz kaybolacak</li>
+            <li>Bu işlem geri alınamaz</li>
+          </ul>
+        </div>
+
+        <!-- Deleted Data Section -->
+        <div class="section">
+          <h2>📦 Silinecek Veriler</h2>
+          <ul style="list-style: none; padding: 0">
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Kişisel bilgileriniz (isim, e-posta)
+            </li>
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Doğum bilgileriniz ve konum verileri
+            </li>
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Tüm astrolojik analizleriniz
+            </li>
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Kayıtlı yorumlarınız ve geçmişiniz
+            </li>
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Premium abonelik bilgileriniz
+            </li>
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Uygulama kullanım geçmişiniz
+            </li>
+          </ul>
+        </div>
+
+        <!-- Process Section -->
+        <div class="section">
+          <h2>🔄 Hesap Silme Süreci</h2>
+
+          <p><strong style="color: #f1f5f9">Mobil Uygulama:</strong></p>
+          <ol>
+            <li>ORBIS uygulamasını açın</li>
+            <li>Ayarlar → Hesap → "Hesabımı Sil" butonuna tıklayın</li>
+            <li>Onaylayın</li>
+            <li>Verileriniz 24 saat içinde silinecektir</li>
+          </ol>
+
+          <p><strong style="color: #f1f5f9">E-posta ile:</strong></p>
+          <p>
+            Aşağıdaki e-posta adresine "Hesap Silme Talebi" konulu bir e-posta
+            gönderin:
+          </p>
+        </div>
+
+        <!-- Contact Box -->
+        <div class="contact-box">
+          <p style="margin-bottom: 12px">
+            📧 E-posta:
+            <a href="mailto:privacy@orbisastro.online"
+              >privacy@orbisastro.online</a
+            >
+          </p>
+          <p style="margin-bottom: 8px; color: #cbd5e1">
+            <strong>E-postanızda şunları belirtin:</strong>
+          </p>
+          <ul style="list-style: none; padding: 0">
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 6px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Kayıtlı e-posta adresiniz
+            </li>
+            <li
+              style="
+                color: #cbd5e1;
+                margin-bottom: 6px;
+                padding-left: 20px;
+                position: relative;
+              "
+            >
+              <span style="position: absolute; left: 0">•</span>
+              Hesap silme talebiniz
+            </li>
+          </ul>
+          <p style="margin-top: 12px; color: #cbd5e1; font-size: 13px">
+            ⏱️ Talebiniz 48 saat içinde işleme alınacaktır.
+          </p>
+        </div>
+
+        <!-- Privacy Section -->
+        <div class="section">
+          <h2>🔒 Gizlilik ve Güvenlik</h2>
+          <p>
+            Verileriniz GDPR ve KVKK uyumlu olarak işlenmektedir. Daha fazla
+            bilgi için:
+          </p>
+          <div class="links">
+            <a
+              href="https://www.orbisastro.online/legal/privacy.html"
+              target="_blank"
+              >Gizlilik Politikası</a
+            >
+            <a
+              href="https://www.orbisastro.online/legal/kvkk.html"
+              target="_blank"
+              >KVKK Aydınlatma Metni</a
+            >
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <a
+          href="mailto:privacy@orbisastro.online?subject=Hesap Silme Talebi&body=Merhaba,%0D%0A%0D%0AKayıtlı e-posta adresim: [E-POSTA ADRESİNİZ]%0D%0A%0D%0AORBIS hesabımın ve tüm verilerimin silinmesini talep ediyorum.%0D%0A%0D%0ATeşekkürler."
+          class="button"
+        >
+          📧 Hesap Silme Talebi Gönder
+        </a>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p>
+          Bu işlem KVKK ve GDPR kapsamında "unutulma hakkı" çerçevesinde
+          gerçekleştirilmektedir.
+        </p>
+        <p style="margin-top: 12px">
+          <a href="https://www.orbisastro.online">← ORBIS Ana Sayfa</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -2,8 +2,8 @@
 <resources>
     <string name="app_name">ORBIS</string>
     <string name="title_activity_main">ORBIS</string>
-    <string name="package_name">com.orbis.astrology</string>
-    <string name="custom_url_scheme">com.orbis.astrology</string>
+    <string name="package_name">com.orbisapp.astrology</string>
+    <string name="custom_url_scheme">com.orbisapp.astrology</string>
     
     <!-- Google Auth -->
     <string name="server_client_id">768649602152-aous93aj0cnn8bjdsqvjo4t62ip2feci.apps.googleusercontent.com</string>

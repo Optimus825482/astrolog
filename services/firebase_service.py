@@ -5,9 +5,12 @@ Push Notifications & Server-side Firestore işlemleri
 
 import os
 import json
+import logging
 import firebase_admin
 from firebase_admin import credentials, messaging, firestore
 from typing import Optional, List, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 
 class FirebaseService:
@@ -60,21 +63,21 @@ class FirebaseService:
                         break
                 
                 if cred is None:
-                    print("[Firebase] Credential dosyası bulunamadı!")
+                    logger.warning("[Firebase] Credential dosyası bulunamadı!")
                     return
-            
+
             # Firebase'i başlat (zaten başlatılmışsa atla)
             try:
                 firebase_admin.get_app()
-                print("[Firebase] Admin SDK zaten başlatılmış")
+                logger.debug("[Firebase] Admin SDK zaten başlatılmış")
             except ValueError:
                 firebase_admin.initialize_app(cred)
-                print("[Firebase] Admin SDK başlatıldı")
+                logger.info("[Firebase] Admin SDK başlatıldı")
             
             self.db = firestore.client()
             
         except Exception as e:
-            print(f"[Firebase] Başlatma hatası: {e}")
+            logger.error(f"[Firebase] Başlatma hatası: {e}")
             self.db = None
     
     # ═══════════════════════════════════════════════════════════════
@@ -150,17 +153,17 @@ class FirebaseService:
             )
             
             response = messaging.send(message)
-            print(f"[Firebase] Push gönderildi: {response}")
+            logger.debug(f"[Firebase] Push gönderildi: {response}")
             return response
-            
+
         except messaging.UnregisteredError:
-            print(f"[Firebase] Token geçersiz, siliniyor: {token[:20]}...")
+            logger.warning(f"[Firebase] Token geçersiz, siliniyor: {token[:20]}...")
             # Token'ı veritabanından sil
             self._remove_invalid_token(token)
             return None
-            
+
         except Exception as e:
-            print(f"[Firebase] Push hatası: {e}")
+            logger.error(f"[Firebase] Push hatası: {e}")
             return None
     
     def send_push_to_multiple(
@@ -202,7 +205,7 @@ class FirebaseService:
             }
             
         except Exception as e:
-            print(f"[Firebase] Multicast hatası: {e}")
+            logger.error(f"[Firebase] Multicast hatası: {e}")
             return {'success_count': 0, 'failure_count': len(tokens), 'error': str(e)}
     
     def send_push_to_topic(
@@ -242,30 +245,30 @@ class FirebaseService:
             )
             
             response = messaging.send(message)
-            print(f"[Firebase] Topic push gönderildi ({topic}): {response}")
+            logger.debug(f"[Firebase] Topic push gönderildi ({topic}): {response}")
             return response
-            
+
         except Exception as e:
-            print(f"[Firebase] Topic push hatası: {e}")
+            logger.error(f"[Firebase] Topic push hatası: {e}")
             return None
     
     def subscribe_to_topic(self, tokens: List[str], topic: str) -> bool:
         """Cihazları bir topic'e abone et"""
         try:
             response = messaging.subscribe_to_topic(tokens, topic)
-            print(f"[Firebase] {response.success_count} cihaz '{topic}' topic'ine abone edildi")
+            logger.debug(f"[Firebase] {response.success_count} cihaz '{topic}' topic'ine abone edildi")
             return response.success_count > 0
         except Exception as e:
-            print(f"[Firebase] Topic subscribe hatası: {e}")
+            logger.error(f"[Firebase] Topic subscribe hatası: {e}")
             return False
-    
+
     def unsubscribe_from_topic(self, tokens: List[str], topic: str) -> bool:
         """Cihazları bir topic'ten çıkar"""
         try:
             response = messaging.unsubscribe_from_topic(tokens, topic)
             return response.success_count > 0
         except Exception as e:
-            print(f"[Firebase] Topic unsubscribe hatası: {e}")
+            logger.error(f"[Firebase] Topic unsubscribe hatası: {e}")
             return False
     
     # ═══════════════════════════════════════════════════════════════
@@ -289,14 +292,14 @@ class FirebaseService:
             })
             return True
         except Exception as e:
-            print(f"[Firebase] Token kaydetme hatası: {e}")
+            logger.error(f"[Firebase] Token kaydetme hatası: {e}")
             return False
-    
+
     def get_user_tokens(self, user_id: str) -> List[str]:
         """Kullanıcının tüm FCM token'larını getir"""
         if not self.db:
             return []
-            
+
         try:
             doc = self.db.collection('users').document(user_id).get()
             if doc.exists:
@@ -305,7 +308,7 @@ class FirebaseService:
                 return [t['token'] for t in tokens if isinstance(t, dict)]
             return []
         except Exception as e:
-            print(f"[Firebase] Token getirme hatası: {e}")
+            logger.error(f"[Firebase] Token getirme hatası: {e}")
             return []
     
     def _remove_invalid_token(self, token: str):
@@ -324,7 +327,7 @@ class FirebaseService:
                     'fcmTokens': firestore.ArrayRemove([{'token': token}])
                 })
         except Exception as e:
-            print(f"[Firebase] Token silme hatası: {e}")
+            logger.error(f"[Firebase] Token silme hatası: {e}")
     
     def activate_premium(
         self,
@@ -363,11 +366,11 @@ class FirebaseService:
                 'timestamp': firestore.SERVER_TIMESTAMP
             })
             
-            print(f"[Firebase] Premium aktivasyonu: {user_id} -> {package_id}")
+            logger.info(f"[Firebase] Premium aktivasyonu: {user_id} -> {package_id}")
             return True
-            
+
         except Exception as e:
-            print(f"[Firebase] Premium aktivasyon hatası: {e}")
+            logger.error(f"[Firebase] Premium aktivasyon hatası: {e}")
             return False
     
     def add_credits(self, user_id: str, amount: int, package_price: float) -> bool:
@@ -391,9 +394,9 @@ class FirebaseService:
             })
             
             return True
-            
+
         except Exception as e:
-            print(f"[Firebase] Kredi ekleme hatası: {e}")
+            logger.error(f"[Firebase] Kredi ekleme hatası: {e}")
             return False
 
 

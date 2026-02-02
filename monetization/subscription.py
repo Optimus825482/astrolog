@@ -12,8 +12,22 @@ class SubscriptionService:
         "free": {
             "name": "Ücretsiz",
             "price": 0,
-            "daily_interpretations": 3,
-            "features": ["Günlük burç yorumu", "Temel natal harita"]
+            "daily_interpretations": 0,  # Limit yok ama her işlem reklam gerektirir
+            "requires_ad": True,  # Her işlem için reklam zorunlu
+            "features": ["Reklam izleyerek analiz", "Reklam izleyerek AI yorum"]
+        },
+        "premium_daily": {
+            "name": "Premium Günlük",
+            "price": 30.0,  # TRY
+            "google_product_id": "astro_premium_daily",
+            "daily_interpretations": -1,  # Sınırsız
+            "requires_ad": False,
+            "features": [
+                "Sınırsız analiz",
+                "Sınırsız AI yorumu",
+                "Reklamsız deneyim",
+                "24 saat geçerli"
+            ]
         },
         "premium_monthly": {
             "name": "Premium Aylık",

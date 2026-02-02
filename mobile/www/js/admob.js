@@ -5,12 +5,16 @@
  */
 
 const OrbisAds = {
-  // Ad Unit IDs
+  // Ad Unit IDs - AdMob Console'dan
   AD_UNITS: {
-    // Production Ad Unit IDs (LIVE)
+    // Banner reklam
     BANNER: "ca-app-pub-2444093901783574/5860659669",
+    // Geçiş reklamı (Interstitial)
     INTERSTITIAL: "ca-app-pub-2444093901783574/8840184408",
-    REWARDED: "ca-app-pub-2444093901783574/4900939398",
+    // Ödüllü Geçiş Reklamı (Rewarded Interstitial) - Genel kullanım
+    REWARDED_INTERSTITIAL: "ca-app-pub-2444093901783574/4900939398",
+    // Ödüllü Video (Rewarded) - Analiz için
+    REWARDED_ANALYSIS: "ca-app-pub-2444093901783574/9083651006",
 
     // Test Ad Unit IDs (DEV) - Sadece geliştirme için
     // BANNER: "ca-app-pub-3940256099942544/6300978111",
@@ -269,7 +273,7 @@ const OrbisAds = {
   },
 
   /**
-   * Rewarded reklam yükle
+   * Rewarded Interstitial reklam yükle
    */
   async loadRewarded() {
     if (!this.isInitialized) return;
@@ -278,7 +282,7 @@ const OrbisAds = {
       const { AdMob } = Capacitor.Plugins;
 
       await AdMob.prepareRewardVideoAd({
-        adId: this.AD_UNITS.REWARDED,
+        adId: this.AD_UNITS.REWARDED_INTERSTITIAL,
         isTesting: false, // Production mode
       });
     } catch (error) {

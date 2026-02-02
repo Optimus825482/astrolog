@@ -1,9 +1,9 @@
 """
-Kullanım Takip Sistemi - YENİ STRATEJİ
-- Günlük 3 ücretsiz REKLAM İZLEME (analiz + yorum için)
-- Her analiz için rewarded ad izleme ZORUNLU
+Kullanım Takip Sistemi - REKLAM ZORUNLU STRATEJİ
+- Her analiz için rewarded ad izleme ZORUNLU (ücretsiz limit YOK)
 - Her AI yorum için rewarded ad izleme ZORUNLU
-- 3 reklam sonrası Premium zorunlu
+- Premium kullanıcılar: Reklamsız sınırsız
+- Admin kullanıcılar: Reklamsız sınırsız
 - Premium Günlük: 30 TL (sınırsız analiz + yorum + reklamsız)
 - Supabase entegrasyonu (production)
 """
@@ -11,7 +11,10 @@ from datetime import datetime, date, timedelta
 from flask import current_app
 import json
 import os
+import logging
 from typing import Optional, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 # Admin email listesi - bu kullanıcılar her zaman premium gibi davranır
 ADMIN_EMAILS = os.environ.get('ADMIN_EMAILS', '').split(',')
@@ -19,9 +22,9 @@ ADMIN_EMAILS = os.environ.get('ADMIN_EMAILS', '').split(',')
 ADMIN_EMAILS = [email.strip().lower() for email in ADMIN_EMAILS if email.strip()]
 
 class UsageTracker:
-    """Kullanıcı kullanım takibi - Günlük reklam izleme limiti"""
+    """Kullanıcı kullanım takibi - Her işlem için reklam zorunlu"""
     
-    FREE_DAILY_LIMIT = 3  # Günlük ücretsiz REKLAM İZLEME sayısı
+    FREE_DAILY_LIMIT = 0  # Ücretsiz limit YOK - her işlem reklam gerektirir
     PREMIUM_DAILY_PRICE = 30.0  # TRY
     
     # In-memory storage (fallback)
@@ -47,7 +50,7 @@ class UsageTracker:
                 self.db = firebase_service.db
                 return True
         except Exception as e:
-            print(f"[UsageTracker] Supabase init hatası: {e}")
+            logger.error(f"[UsageTracker] Supabase init hatası: {e}")
         return False
     
     def _ensure_storage(self):
@@ -88,7 +91,7 @@ class UsageTracker:
         """Kullanıcının bugünkü kullanımını getir"""
         today = date.today().isoformat()
         
-        print(f"[UsageTracker] 🔍 get_user_usage - device_id: {device_id}, email: {email}, today: {today}")
+        print(f"[UsageTracker] ")
         
         # Supabase'den oku
         if self.use_supabase:
@@ -96,7 +99,7 @@ class UsageTracker:
                 doc = self.db.collection('usage_tracking').document(device_id).get()
                 if doc.exists:
                     user_data = doc.to_dict()
-                    print(f"[UsageTracker] ✅ Supabase - User found: {user_data}")
+                    print(f"[UsageTracker] ")
                 else:
                     # Yeni kullanıcı oluştur
                     user_data = {
@@ -108,9 +111,9 @@ class UsageTracker:
                         "created_at": datetime.now().isoformat()
                     }
                     self.db.collection('usage_tracking').document(device_id).set(user_data)
-                    print(f"[UsageTracker] ✅ Supabase - New user created: {device_id}")
+                    print(f"[UsageTracker] ")
             except Exception as e:
-                print(f"[UsageTracker] ❌ Supabase read hatası: {e}")
+                print(f"[UsageTracker] ")
                 # Fallback to memory
                 user_data = self._memory_storage.get(device_id, {"usage": {}, "premium": False})
         else:
@@ -127,20 +130,22 @@ class UsageTracker:
         is_admin = self._is_admin(email)
         is_premium = is_admin or self._check_premium(user_data)
         
-        remaining = "unlimited" if is_premium else max(0, self.FREE_DAILY_LIMIT - today_usage)
+        # Premium/Admin: unlimited, Ücretsiz: her işlem reklam gerektirir (limit yok ama reklam zorunlu)
+        remaining = "unlimited" if is_premium else "requires_ad"
         
         result = {
             "device_id": device_id,
             "today_usage": today_usage,
-            "daily_limit": self.FREE_DAILY_LIMIT,
+            "daily_limit": 0,  # Artık limit yok
             "remaining": remaining,
             "is_premium": is_premium,
             "is_admin": is_admin,
             "premium_until": "lifetime" if is_admin else user_data.get("premium_until"),
-            "show_ads": not is_premium  # Admin ve premium kullanıcılara reklam gösterme
+            "show_ads": not is_premium,  # Admin ve premium kullanıcılara reklam gösterme
+            "requires_ad": not is_premium  # Ücretsiz kullanıcılar her işlem için reklam izlemeli
         }
         
-        print(f"[UsageTracker] 📊 Result: {result}")
+        print(f"[UsageTracker] get_user_usage result: {result}")
         
         return result
     
@@ -163,40 +168,44 @@ class UsageTracker:
         """
         Kullanıcı özelliği kullanabilir mi?
         feature: 'ad_watch' (analiz veya yorum için reklam izleme)
+        
+        YENİ MANTIK: Ücretsiz limit YOK - her işlem için reklam ZORUNLU
         """
-        print(f"[UsageTracker] 🔍 can_use_feature - device_id: {device_id}, feature: {feature}, email: {email}")
+        print(f"[UsageTracker] can_use_feature: device={device_id}, feature={feature}")
         
         usage = self.get_user_usage(device_id, email)
         
-        # Admin her zaman kullanabilir
+        # Admin her zaman kullanabilir - REKLAMSIZ
         if usage.get("is_admin"):
-            print(f"[UsageTracker] 👑 Admin user - unlimited access")
-            return {"allowed": True, "reason": "admin", "remaining": "unlimited", "show_ads": False, "requires_ad": False}
-        
-        if usage["is_premium"]:
-            print(f"[UsageTracker] 💎 Premium user - unlimited access")
-            return {"allowed": True, "reason": "premium", "remaining": "unlimited", "show_ads": False, "requires_ad": False}
-        
-        # Ücretsiz kullanıcı - reklam izleme gerekli
-        if usage["remaining"] > 0:
-            print(f"[UsageTracker] ✅ Free user - {usage['remaining']} remaining, ad required")
+            print(f"[UsageTracker] Admin kullanıcı - reklamsız erişim")
             return {
                 "allowed": True, 
-                "reason": "free_quota", 
-                "remaining": usage["remaining"], 
-                "show_ads": True,
-                "requires_ad": True,  # Reklam izleme ZORUNLU
-                "message": f"Reklam izleyerek devam edebilirsiniz. Bugün {usage['remaining']} hakkınız kaldı."
+                "reason": "admin", 
+                "remaining": "unlimited", 
+                "show_ads": False, 
+                "requires_ad": False
             }
         
-        print(f"[UsageTracker] ❌ Limit reached - premium required")
+        # Premium kullanıcı - REKLAMSIZ
+        if usage["is_premium"]:
+            print(f"[UsageTracker] Premium kullanıcı - reklamsız erişim")
+            return {
+                "allowed": True, 
+                "reason": "premium", 
+                "remaining": "unlimited", 
+                "show_ads": False, 
+                "requires_ad": False
+            }
+        
+        # Ücretsiz kullanıcı - HER İŞLEM İÇİN REKLAM ZORUNLU
+        print(f"[UsageTracker] Ücretsiz kullanıcı - reklam izleme zorunlu")
         return {
-            "allowed": False, 
-            "reason": "limit_reached",
-            "message": "Günlük 3 ücretsiz hakkınız doldu. Premium'a geçin!",
-            "remaining": 0,
+            "allowed": True, 
+            "reason": "requires_ad", 
+            "remaining": "unlimited",  # Limit yok, ama her seferinde reklam gerekli
             "show_ads": True,
-            "requires_ad": False,
+            "requires_ad": True,  # REKLAM İZLEME ZORUNLU
+            "message": "Devam etmek için reklam izlemeniz gerekiyor. Premium'a geçerek reklamsız kullanabilirsiniz.",
             "premium_price": self.PREMIUM_DAILY_PRICE
         }
     def record_usage(self, device_id: str, feature: str = "ad_watch", email: str = None) -> dict:
@@ -206,7 +215,7 @@ class UsageTracker:
         """
         today = date.today().isoformat()
         
-        print(f"[UsageTracker] 📝 record_usage - device_id: {device_id}, feature: {feature}, email: {email}, today: {today}")
+        print(f"[UsageTracker] ")
         
         # Supabase'e yaz
         if self.use_supabase:
@@ -216,7 +225,7 @@ class UsageTracker:
                 
                 if doc.exists:
                     user_data = doc.to_dict()
-                    print(f"[UsageTracker] ✅ Supabase - User found for recording")
+                    print(f"[UsageTracker] ")
                 else:
                     user_data = {
                         "device_id": device_id,
@@ -225,7 +234,7 @@ class UsageTracker:
                         "premium": False,
                         "created_at": datetime.now().isoformat()
                     }
-                    print(f"[UsageTracker] ✅ Supabase - New user created for recording")
+                    print(f"[UsageTracker] ")
                 
                 # Admin ve Premium kontrolü
                 is_admin = self._is_admin(email)
@@ -237,12 +246,12 @@ class UsageTracker:
                     user_data["usage"][today] = old_usage + 1
                     user_data["updated_at"] = datetime.now().isoformat()
                     doc_ref.set(user_data)
-                    print(f"[UsageTracker] ✅ Supabase - Usage recorded: {old_usage} -> {old_usage + 1}")
+                    print(f"[UsageTracker] ")
                 else:
-                    print(f"[UsageTracker] ⚠️ Admin/Premium user - usage not recorded")
+                    print(f"[UsageTracker] ")
                 
             except Exception as e:
-                print(f"[UsageTracker] ❌ Supabase write hatası: {e}")
+                print(f"[UsageTracker] ")
                 # Fallback to memory
                 if device_id not in self._memory_storage:
                     self._memory_storage[device_id] = {"usage": {}, "premium": False}
@@ -267,12 +276,12 @@ class UsageTracker:
             if not is_admin and not self._check_premium(data[device_id]):
                 old_usage = data[device_id]["usage"][today]
                 data[device_id]["usage"][today] += 1
-                print(f"[UsageTracker] ✅ Memory - Usage recorded: {old_usage} -> {old_usage + 1}")
+                print(f"[UsageTracker] ")
             
             self._save_data(data)
         
         result = self.get_user_usage(device_id, email)
-        print(f"[UsageTracker] 📊 record_usage result: {result}")
+        print(f"[UsageTracker] ")
         return result
     
     def set_premium(self, device_id: str, days: int = 30) -> dict:
@@ -300,7 +309,7 @@ class UsageTracker:
                 doc_ref.set(user_data)
                 
             except Exception as e:
-                print(f"[UsageTracker] Supabase premium set hatası: {e}")
+                print(f"[UsageTracker] ")
                 # Fallback to memory
                 if device_id not in self._memory_storage:
                     self._memory_storage[device_id] = {"usage": {}}

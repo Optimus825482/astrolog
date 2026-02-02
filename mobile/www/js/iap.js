@@ -107,7 +107,7 @@ const OrbisIAP = {
       // Google Play Store'a yönlendir (şimdilik)
       // TODO: cordova-plugin-purchase entegrasyonu eklenecek
       const playStoreUrl =
-        "https://play.google.com/store/apps/details?id=com.orbis.astrology";
+        "https://play.google.com/store/apps/details?id=com.orbisapp.astrology";
 
       if (window.Capacitor?.Plugins?.Browser) {
         await window.Capacitor.Plugins.Browser.open({ url: playStoreUrl });

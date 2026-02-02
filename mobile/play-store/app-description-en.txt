@@ -73,5 +73,6 @@ Download, explore your birth chart, and begin your cosmic journey!
 
 ---
 © 2026 ORBIS - Geometry of Destiny
-Web: https://orbis.app
-Support: support@orbis.app
+
+Web: https://orbisastro.online
+Support: orbisastro@erkanerdem.net

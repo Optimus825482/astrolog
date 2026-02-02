@@ -131,10 +131,9 @@ class MonetizationManager {
             usageBar.style.width = '100%';
             usageBar.classList.add('premium');
         } else {
-            const remaining = usage?.usage?.remaining || 0;
-            const limit = usage?.usage?.daily_limit || 3;
-            usageText.textContent = `Bugün: ${limit - remaining}/${limit} kullanıldı`;
-            usageBar.style.width = `${((limit - remaining) / limit) * 100}%`;
+            // Ücretsiz kullanıcı = Her analiz için reklam zorunlu
+            usageText.textContent = '📺 Reklam izleyerek sınırsız analiz yapın';
+            usageBar.style.width = '100%';
         }
     }
 }

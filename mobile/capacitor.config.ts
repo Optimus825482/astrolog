@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.orbis.astrology",
+  appId: "com.orbisapp.astrology",
   appName: "ORBIS",
   webDir: "www",
 

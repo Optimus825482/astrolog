@@ -15,11 +15,11 @@ class Config:
     GOOGLE_API_KEY = get_env("GOOGLE_API_KEY", "")
     OPENROUTER_API_KEY = get_env("OPENROUTER_API_KEY", "")
 
-    # Session Configuration - Switch to default Flask Cookie Session
-    SESSION_TYPE = None # Default Flask cookie session
+    # Session Configuration - Secure session management
+    SESSION_TYPE = None  # Default Flask cookie session
     SESSION_PERMANENT = True
-    PERMANENT_SESSION_LIFETIME = 3600 * 24 * 7 # 1 week
-    SESSION_USE_SIGNER = False  # No signing - client-side state only
+    PERMANENT_SESSION_LIFETIME = 3600 * 24 * 7  # 1 week
+    SESSION_USE_SIGNER = True  # Enable session signing for security
     SESSION_COOKIE_SECURE = EnvConfig.get_session_cookie_secure()
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
@@ -46,7 +46,15 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     SESSION_COOKIE_SECURE = True
+    
     def __init__(self):
+        # SECRET_KEY production'da zorunlu
+        secret_key = os.getenv("SECRET_KEY")
+        if not secret_key or secret_key == "change-me-in-production":
+            raise ValueError(
+                "SECRET_KEY environment variable must be set in production! "
+                "Generate a secure key with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
         EnvConfig.validate_required()
 
 config = {
